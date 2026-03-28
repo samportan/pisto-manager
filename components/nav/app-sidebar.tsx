@@ -33,14 +33,15 @@ export function AppSidebar({ email }: { email: string | null }) {
               size="lg"
               render={<Link href="/dashboard" />}
               isActive={pathname === "/dashboard"}
+              className="h-auto py-2"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <LayoutDashboard className="size-4" aria-hidden />
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/80 text-sidebar-primary-foreground font-bold">
+                P
               </span>
               <span className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Pisto</span>
-                <span className="truncate text-xs text-sidebar-foreground/70">
-                  Money manager
+                <span className="truncate font-bold">Pisto</span>
+                <span className="truncate text-xs text-sidebar-foreground/60">
+                  Finance
                 </span>
               </span>
             </SidebarMenuButton>
@@ -88,19 +89,19 @@ export function AppSidebar({ email }: { email: string | null }) {
         {email ? (
           <p
             className={cn(
-              "truncate px-2 text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden"
+              "truncate px-2 text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden"
             )}
             title={email}
           >
             {shortEmail}
           </p>
         ) : (
-          <p className="px-2 text-xs text-amber-700/90 dark:text-amber-300/90 group-data-[collapsible=icon]:hidden">
+          <p className="px-2 text-xs text-warning group-data-[collapsible=icon]:hidden">
             Supabase not configured
           </p>
         )}
         <div className="px-2 pb-2 group-data-[collapsible=icon]:px-0">
-          <SignOutButton className="w-full border-sidebar-border bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent md:max-w-none" />
+          <SignOutButton className="w-full border-sidebar-border bg-muted text-sidebar-foreground hover:bg-muted/80 md:max-w-none transition-colors" />
         </div>
       </SidebarFooter>
       <SidebarRail />

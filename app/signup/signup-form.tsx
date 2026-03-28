@@ -9,8 +9,7 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/client";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
-const inputClassName =
-  "w-full rounded-lg border border-zinc-200 bg-zinc-50/80 px-3.5 py-2.5 text-sm outline-none ring-zinc-400/30 transition placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950/50 dark:placeholder:text-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-950 dark:focus:ring-zinc-600/40";
+
 
 export function SignupForm() {
   const router = useRouter();
@@ -76,7 +75,7 @@ export function SignupForm() {
     <form className="space-y-4" onSubmit={handleSubmit}>
       {error ? (
         <p
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
           {error}
@@ -84,7 +83,7 @@ export function SignupForm() {
       ) : null}
       {info ? (
         <p
-          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100"
+          className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent-foreground"
           role="status"
         >
           {info}
@@ -94,7 +93,7 @@ export function SignupForm() {
       <div className="space-y-2">
         <label
           htmlFor="email"
-          className="block text-xs font-medium text-zinc-600 dark:text-zinc-300"
+          className="block text-xs font-semibold text-muted-foreground"
         >
           Email
         </label>
@@ -105,13 +104,12 @@ export function SignupForm() {
           autoComplete="email"
           required
           placeholder="you@example.com"
-          className={inputClassName}
         />
       </div>
       <div className="space-y-2">
         <Label
           htmlFor="password"
-          className="block text-xs font-medium text-zinc-600 dark:text-zinc-300"
+          className="block text-xs font-semibold text-muted-foreground"
         >
           Password
         </Label>
@@ -123,13 +121,12 @@ export function SignupForm() {
           required
           minLength={8}
           placeholder="••••••••"
-          className={inputClassName}
         />
       </div>
       <div className="space-y-2">
         <Label
           htmlFor="confirm"
-          className="block text-xs font-medium text-zinc-600 dark:text-zinc-300"
+          className="block text-xs font-semibold text-muted-foreground"
         >
           Confirm password
         </Label>
@@ -141,23 +138,22 @@ export function SignupForm() {
           required
           minLength={8}
           placeholder="••••••••"
-          className={inputClassName}
         />
       </div>
 
       <Button
         type="submit"
         disabled={pending}
-        className="mt-2 w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+        className="mt-2 w-full"
       >
         {pending ? "Creating account…" : "Create account"}
       </Button>
 
-      <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-100"
+          className="font-semibold text-primary hover:text-primary/80 transition-colors"
         >
           Sign in
         </Link>

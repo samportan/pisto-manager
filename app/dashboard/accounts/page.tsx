@@ -17,54 +17,51 @@ function formatMoney(value: number) {
 
 export default function AccountsPage() {
   return (
-    <div className="relative flex-1">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-1/4 bottom-0 h-[22rem] w-[22rem] rounded-full bg-violet-400/10 blur-3xl dark:bg-violet-500/6" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="flex-1">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h1 className="text-3xl font-bold tracking-tight">
             Accounts
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Demo accounts — replace with Supabase-backed balances later.
+          <p className="mt-2 text-sm text-muted-foreground">
+            View and manage all your linked accounts.
           </p>
         </header>
 
-        <section className="mb-8 rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
+        <section className="mb-8 rounded-xl border border-border bg-card p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Net worth
+            Total net worth
           </p>
-          <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">
+          <p className="mt-2 text-4xl font-bold tabular-nums text-primary">
             {formatMoney(mockNetWorth)}
           </p>
+          <div className="mt-4 h-1 w-16 rounded-full bg-accent"></div>
         </section>
 
-        <ul className="space-y-3">
+        <div className="space-y-3">
           {mockAccounts.map((acc) => (
             <li
               key={acc.id}
-              className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-card/80 px-4 py-4 shadow-sm"
+              className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 hover:border-secondary/50 transition-colors group"
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-                <Landmark className="size-5 text-muted-foreground" aria-hidden />
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-secondary group-hover:bg-secondary/25 transition-colors">
+                <Landmark className="size-5" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-medium">{acc.name}</p>
+                <p className="font-semibold text-foreground">{acc.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {acc.institution} · {acc.type}
                 </p>
               </div>
-              <p className="text-lg font-semibold tabular-nums">
+              <p className="text-lg font-bold tabular-nums text-foreground">
                 {formatMoney(acc.balance)}
               </p>
             </li>
           ))}
-        </ul>
+        </div>
 
         <div className="mt-8 flex justify-end">
-          <Button type="button" disabled>
+          <Button type="button" disabled className="bg-muted text-foreground">
             Add account
           </Button>
         </div>

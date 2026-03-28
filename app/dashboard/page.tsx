@@ -32,12 +32,7 @@ function formatMoney(value: number) {
 export default function DashboardPage() {
   return (
     <div className="relative flex-1">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-1/4 top-0 h-[24rem] w-[24rem] rounded-full bg-violet-400/12 blur-3xl dark:bg-violet-500/8" />
-        <div className="absolute -right-1/4 bottom-0 h-[20rem] w-[20rem] rounded-full bg-emerald-400/10 blur-3xl dark:bg-emerald-500/6" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <section className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -57,94 +52,95 @@ export default function DashboardPage() {
           </Button>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-border bg-card/80 p-6 shadow-sm backdrop-blur-sm">
+        <section className="mb-6 rounded-xl border border-border bg-card p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Net worth
           </p>
-          <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">
+          <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl text-primary">
             {formatMoney(mockNetWorth)}
           </p>
+          <div className="mt-4 h-1 w-16 rounded-full bg-accent"></div>
         </section>
 
         <section className="mb-10 grid gap-4 sm:grid-cols-3">
-          <article className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-700 dark:text-violet-300">
-                <Wallet className="size-4" aria-hidden />
+          <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-secondary/50 transition-colors">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-secondary/15 text-secondary group-hover:bg-secondary/25 transition-colors">
+                <Wallet className="size-5" aria-hidden />
               </span>
-              <ArrowUpRight className="size-4 text-muted-foreground" aria-hidden />
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Balance (all accounts)
+              Balance
             </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
+            <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
               {formatMoney(mockNetWorth)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Demo total across linked accounts.
+              All accounts
             </p>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/30"></div>
           </article>
 
-          <article className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                <PiggyBank className="size-4" aria-hidden />
+          <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-accent/50 transition-colors">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-accent/15 text-accent group-hover:bg-accent/25 transition-colors">
+                <PiggyBank className="size-5" aria-hidden />
               </span>
-              <ArrowUpRight className="size-4 text-muted-foreground" aria-hidden />
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Savings
             </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
+            <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
               {formatMoney(mockSavingsTotal)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Goals and pots (sample).
+              Goals & pots
             </p>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent"></div>
           </article>
 
-          <article className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm backdrop-blur-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-200">
-                <LayoutDashboard className="size-4" aria-hidden />
+          <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <span className="flex size-10 items-center justify-center rounded-lg bg-primary/15 text-primary group-hover:bg-primary/25 transition-colors">
+                <LayoutDashboard className="size-5" aria-hidden />
               </span>
-              <ArrowUpRight className="size-4 text-muted-foreground" aria-hidden />
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              This month spent
+              Spent this month
             </p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
+            <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
               {formatMoney(mockSpendThisMonth)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Rolling demo spend for March.
+              March spending
             </p>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/40"></div>
           </article>
         </section>
 
         <section>
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold tracking-tight">
+            <h2 className="text-base font-semibold tracking-tight">
               Recent transactions
             </h2>
             <Link
               href="/dashboard/transactions"
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              See all
+              View all
             </Link>
           </div>
-          <ul className="divide-y divide-border rounded-2xl border border-border bg-card/80">
+          <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
             {mockRecentTransactions.map((tx) => (
               <li
                 key={tx.id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl"
+                className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/40 transition-colors"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{tx.title}</p>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <p className="truncate font-medium text-foreground">{tx.title}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>{tx.date}</span>
-                    <Badge variant="secondary" className="font-normal">
+                    <Badge variant="secondary" className="font-normal bg-accent/20 text-accent-foreground hover:bg-accent/30">
                       {tx.category}
                     </Badge>
                     <span>{tx.account}</span>
@@ -152,11 +148,11 @@ export default function DashboardPage() {
                 </div>
                 <p
                   className={cn(
-                    "shrink-0 text-sm font-semibold tabular-nums",
-                    tx.amount >= 0 ? "text-emerald-600 dark:text-emerald-400" : ""
+                    "shrink-0 text-sm font-bold tabular-nums",
+                    tx.amount >= 0 ? "text-accent" : "text-destructive"
                   )}
                 >
-                  {formatMoney(tx.amount)}
+                  {tx.amount >= 0 ? "+" : ""}{formatMoney(tx.amount)}
                 </p>
               </li>
             ))}
@@ -166,7 +162,7 @@ export default function DashboardPage() {
 
       <Button
         size="icon-lg"
-        className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 size-12 rounded-full shadow-lg md:bottom-8 md:right-8"
+        className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 size-12 rounded-full md:bottom-8 md:right-8 bg-accent hover:bg-accent/90 text-accent-foreground shadow-md hover:shadow-lg transition-all"
         type="button"
         aria-label="Add transaction"
       >
