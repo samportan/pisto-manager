@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings } from "lucide-react";
-import { SignOutButton } from "@/components/sign-out-button";
+import { LogOut, Settings } from "lucide-react";
+import { useSignOut } from "@/components/sign-out-button";
 import { isNavActive, mainNavItems } from "@/components/nav/nav-config";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +22,7 @@ import {
 
 export function AppSidebar({ email }: { email: string | null }) {
   const pathname = usePathname();
+  const { signOut, pending } = useSignOut();
   const shortEmail = email?.includes("@") ? email.split("@")[0] : email;
 
   return (
@@ -100,9 +101,19 @@ export function AppSidebar({ email }: { email: string | null }) {
             Supabase not configured
           </p>
         )}
-        <div className="px-2 pb-2 group-data-[collapsible=icon]:px-0">
-          <SignOutButton className="w-full border-sidebar-border bg-muted text-sidebar-foreground hover:bg-muted/80 md:max-w-none transition-colors" />
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              type="button"
+              tooltip="Sign out"
+              disabled={pending}
+              onClick={signOut}
+            >
+              <LogOut aria-hidden />
+              <span>{pending ? "Signing out…" : "Sign out"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

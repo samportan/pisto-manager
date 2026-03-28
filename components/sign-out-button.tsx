@@ -1,17 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/client";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
-export function SignOutButton({ className }: { className?: string }) {
+export function useSignOut() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
-  async function handleSignOut() {
+  const signOut = useCallback(async () => {
     setPending(true);
     if (isSupabaseConfigured()) {
       const supabase = createClient();
@@ -19,7 +19,13 @@ export function SignOutButton({ className }: { className?: string }) {
     }
     router.push("/login");
     router.refresh();
-  }
+  }, [router]);
+
+  return { signOut, pending };
+}
+
+export function SignOutButton({ className }: { className?: string }) {
+  const { signOut, pending } = useSignOut();
 
   return (
     <Button
@@ -27,7 +33,7 @@ export function SignOutButton({ className }: { className?: string }) {
       variant="outline"
       size="sm"
       disabled={pending}
-      onClick={handleSignOut}
+      onClick={signOut}
       className={cn(
         "border-border bg-background/80 text-foreground hover:bg-muted",
         className

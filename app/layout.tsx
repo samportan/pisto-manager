@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { QueryProvider } from "@/components/query-provider";
 import { SupabaseConnectionLogger } from "@/components/supabase-connection-logger";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -50,10 +51,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>
-            <SupabaseConnectionLogger />
-            {children}
-          </TooltipProvider>
+          <QueryProvider>
+            <TooltipProvider>
+              <SupabaseConnectionLogger />
+              {children}
+            </TooltipProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
