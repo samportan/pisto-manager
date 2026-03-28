@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/client";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
-const inputClassName =
-  "w-full rounded-lg border border-zinc-200 bg-zinc-50/80 px-3.5 py-2.5 text-sm outline-none ring-zinc-400/30 transition placeholder:text-zinc-400 focus:border-zinc-300 focus:bg-white focus:ring-2 dark:border-zinc-700 dark:bg-zinc-950/50 dark:placeholder:text-zinc-500 dark:focus:border-zinc-600 dark:focus:bg-zinc-950 dark:focus:ring-zinc-600/40";
+
 
 type LoginFormProps = {
   nextPath?: string;
@@ -70,7 +69,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
     <form className="space-y-4" onSubmit={handleSubmit}>
       {error ? (
         <p
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
           role="alert"
         >
           {error}
@@ -80,7 +79,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
       <div className="space-y-2">
         <label
           htmlFor="email"
-          className="block text-xs font-medium text-zinc-600 dark:text-zinc-300"
+          className="block text-xs font-semibold text-muted-foreground"
         >
           Email
         </label>
@@ -91,20 +90,19 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           autoComplete="email"
           required
           placeholder="you@example.com"
-          className={inputClassName}
         />
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label
             htmlFor="password"
-            className="block text-xs font-medium text-zinc-600 dark:text-zinc-300"
+            className="block text-xs font-semibold text-muted-foreground"
           >
             Password
           </Label>
           <button
             type="button"
-            className="text-xs font-medium text-zinc-500 underline-offset-4 hover:text-zinc-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="text-xs font-medium text-primary underline-offset-4 hover:underline transition-colors"
           >
             Forgot?
           </button>
@@ -116,33 +114,40 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           autoComplete="current-password"
           required
           placeholder="••••••••"
-          className={inputClassName}
         />
       </div>
 
       <Button
         type="submit"
         disabled={pending}
-        className="mt-2 w-full rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99] disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+        className="mt-2 w-full"
       >
         {pending ? "Signing in…" : "Sign in"}
       </Button>
 
-      <hr className="my-4 border-zinc-200 dark:border-zinc-800" />
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-border/50"></div>
+        </div>
+        <div className="relative flex justify-center text-xs">
+          <span className="bg-card px-2 text-muted-foreground">or</span>
+        </div>
+      </div>
 
       <Button
         type="button"
-        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 active:scale-[0.99] dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+        variant="outline"
+        className="w-full justify-center gap-2"
       >
-        <SiApple className="size-5 shrink-0" aria-hidden />
+        <SiApple className="size-4 shrink-0" aria-hidden />
         Continue with Apple
       </Button>
 
-      <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         No account?{" "}
         <Link
           href="/signup"
-          className="font-medium text-zinc-900 underline-offset-4 hover:underline dark:text-zinc-100"
+          className="font-semibold text-primary hover:text-primary/80 transition-colors"
         >
           Create one
         </Link>

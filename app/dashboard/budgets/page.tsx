@@ -23,19 +23,15 @@ export default function BudgetsPage() {
     totalBudget > 0 ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0;
 
   return (
-    <div className="relative flex-1">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-1/4 top-0 h-[18rem] w-[18rem] rounded-full bg-emerald-400/10 blur-3xl dark:bg-emerald-500/6" />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="flex-1">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className="text-3xl font-bold tracking-tight">
               Budgets
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Category limits for the month — static preview.
+              Set and track spending limits by category.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -61,19 +57,19 @@ export default function BudgetsPage() {
           </div>
         </header>
 
-        <section className="mb-8 rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
+        <section className="mb-8 rounded-xl border border-border bg-card p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             This month
           </p>
-          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-2xl font-semibold tabular-nums">
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-2xl font-bold tabular-nums text-foreground">
               {formatMoney(totalSpent)}
               <span className="text-base font-normal text-muted-foreground">
                 {" "}
                 / {formatMoney(totalBudget)}
               </span>
             </p>
-            <span className="text-sm text-muted-foreground">{overallPct}% used</span>
+            <span className="text-sm font-medium text-primary">{overallPct}% used</span>
           </div>
           <Progress value={overallPct} className="mt-4 h-2" />
         </section>
@@ -84,19 +80,20 @@ export default function BudgetsPage() {
               cat.budget > 0
                 ? Math.min(100, Math.round((cat.spent / cat.budget) * 100))
                 : 0;
+            const isOverBudget = pct > 100;
             return (
               <article
                 key={cat.id}
-                className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm"
+                className="rounded-xl border border-border bg-card p-5 hover:border-secondary/50 transition-colors group"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h2 className="font-medium">{cat.name}</h2>
+                    <h2 className="font-semibold text-foreground">{cat.name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {formatMoney(cat.spent)} of {formatMoney(cat.budget)}
                     </p>
                   </div>
-                  <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                  <span className={`text-sm font-bold tabular-nums ${isOverBudget ? "text-destructive" : "text-primary"}`}>
                     {pct}%
                   </span>
                 </div>
@@ -107,7 +104,7 @@ export default function BudgetsPage() {
         </div>
 
         <div className="mt-8 flex justify-end">
-          <Button type="button" disabled>
+          <Button type="button" disabled className="bg-muted text-foreground">
             Add budget
           </Button>
         </div>

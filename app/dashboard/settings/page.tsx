@@ -35,67 +35,66 @@ export default async function SettingsPage() {
   const initials = initialsFromEmail(email);
 
   return (
-    <div className="relative flex-1">
-      <div className="relative z-10 mx-auto max-w-lg px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+    <div className="flex-1">
+      <div className="mx-auto max-w-lg px-4 py-8 sm:px-6">
+        <h1 className="text-3xl font-bold tracking-tight">
           Settings
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Profile and app preferences — data is local until Supabase is wired.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Manage your profile and preferences.
         </p>
 
-        <section className="mt-8 rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
+        <section className="mt-8 rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-4">
-            <Avatar className="size-14">
-              <AvatarFallback className="text-sm font-medium">
+            <Avatar className="size-14 bg-primary/20 text-primary">
+              <AvatarFallback className="text-sm font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate font-medium">{display}</p>
+              <p className="truncate font-semibold text-foreground">{display}</p>
               {email ? (
                 <p className="truncate text-sm text-muted-foreground">{email}</p>
               ) : (
-                <p className="text-sm text-amber-700 dark:text-amber-300/90">
-                  Add Supabase env vars to enable sign-in.
+                <p className="text-sm text-warning">
+                  Configure Supabase to sign in.
                 </p>
               )}
             </div>
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
-          <h2 className="text-sm font-semibold">Appearance</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Use the sun/moon control in the top bar to switch light, dark, or
-            system theme.
+        <section className="mt-6 rounded-xl border border-border bg-card p-6">
+          <h2 className="text-base font-semibold text-foreground">Appearance</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Use the sun/moon icon in the header to switch themes.
           </p>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-border bg-card/80 p-6 shadow-sm">
-          <h2 className="text-sm font-semibold">Region</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Currency and locale will sync with your profile later.
+        <section className="mt-6 rounded-xl border border-border bg-card p-6">
+          <h2 className="text-base font-semibold text-foreground">Region</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Currency and locale settings for your account.
           </p>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between gap-4">
+          <dl className="mt-4 space-y-3 text-sm">
+            <div className="flex justify-between items-center">
               <dt className="text-muted-foreground">Currency</dt>
-              <dd className="font-medium tabular-nums">USD ($)</dd>
+              <dd className="font-semibold text-foreground tabular-nums">USD ($)</dd>
             </div>
-            <div className="flex justify-between gap-4">
+            <div className="flex justify-between items-center">
               <dt className="text-muted-foreground">Locale</dt>
-              <dd className="font-medium">en-US</dd>
+              <dd className="font-semibold text-foreground">en-US</dd>
             </div>
           </dl>
         </section>
 
-        <Separator className="my-8" />
+        <Separator className="my-8 bg-border/50" />
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Signing out clears your session in the browser.
+            Sign out of your account from this device.
           </p>
-          <SignOutButton />
+          <SignOutButton className="bg-muted text-foreground hover:bg-muted/80 transition-colors" />
         </div>
       </div>
     </div>
