@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Landmark } from "lucide-react";
 import { CreateAccountSheet } from "@/components/create-account-sheet";
 import { useAccounts } from "@/hooks/useAccounts";
-import { mockAccounts, mockNetWorth } from "@/lib/mock-data";
+import { getAccountTypeIcon } from "@/lib/account-type-icons";
+import {
+  summarizeAccountsNetWorth,
+  type Account,
+} from "@/lib/db/accounts";
+import { mockAccounts } from "@/lib/mock-data";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
 function formatMoney(value: number) {
@@ -27,10 +31,19 @@ export function AccountsDashboard() {
 
   const useLive = isSupabaseConfigured() && isSessionReady;
   const list = useLive ? accounts : null;
-  const netWorth =
+
+  const demoSummary = summarizeAccountsNetWorth(
+    mockAccounts.map((a) => ({
+      type: a.type as Account["type"],
+      balance: a.balance,
+      is_active: true,
+    }))
+  );
+
+  const summary =
     list !== null
-      ? list.filter((a) => a.is_active).reduce((s, a) => s + a.balance, 0)
-      : mockNetWorth;
+      ? summarizeAccountsNetWorth(list)
+      : demoSummary;
 
   return (
     <>
@@ -55,13 +68,57 @@ export function AccountsDashboard() {
       </header>
 
       <section className="mb-8 rounded-xl border border-border bg-card p-6">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Total net worth
-        </p>
-        <p className="mt-2 text-4xl font-bold tabular-nums text-primary">
-          {useLive && isLoading ? "…" : formatMoney(netWorth)}
-        </p>
-        <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Your money
+            </p>
+            <p className="mt-2 text-4xl font-bold tabular-nums text-primary">
+              {useLive && isLoading ? "…" : formatMoney(summary.netWorth)}
+            </p>
+            <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
+              Cash, bank, and investment balances only. Credit card balances in
+              Pisto are treated as how much you can still spend against the
+              limit, so they are not added to or subtracted from this total.
+            </p>
+          </div>
+          <div className="w-full max-w-sm space-y-3 rounded-lg border border-border/80 bg-muted/20 px-4 py-3 text-sm sm:shrink-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Breakdown
+            </p>
+            <dl className="space-y-2.5">
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-muted-foreground">Cash &amp; bank</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {useLive && isLoading ? "…" : formatMoney(summary.cashAndBank)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-muted-foreground">Investments</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {useLive && isLoading ? "…" : formatMoney(summary.investments)}
+                </dd>
+              </div>
+              <div className="border-t border-border pt-2.5">
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted-foreground">
+                    Available on credit cards
+                  </dt>
+                  <dd className="font-semibold tabular-nums text-secondary">
+                    {useLive && isLoading
+                      ? "…"
+                      : formatMoney(summary.creditAvailable)}
+                  </dd>
+                </div>
+                <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                  Sum of balances on credit-type accounts (spending power, not
+                  net worth).
+                </p>
+              </div>
+            </dl>
+          </div>
+        </div>
+        <div className="mt-6 h-1 w-16 rounded-full bg-accent" />
       </section>
 
       {useLive && error ? (
@@ -74,7 +131,9 @@ export function AccountsDashboard() {
             Loading accounts…
           </li>
         ) : list && list.length > 0 ? (
-          list.map((acc) => (
+          list.map((acc) => {
+            const AccountIcon = getAccountTypeIcon(acc.type);
+            return (
             <li key={acc.id}>
               <Link
                 href={`/dashboard/accounts/${acc.id}`}
@@ -82,9 +141,11 @@ export function AccountsDashboard() {
               >
                 <span
                   className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card"
-                  style={{ borderColor: `${acc.color}55` }}
+                  style={{
+                    borderColor: `${acc.color ?? "#64748b"}55`,
+                  }}
                 >
-                  <Landmark className="size-5 text-foreground" aria-hidden />
+                  <AccountIcon className="size-5 text-foreground" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-foreground">{acc.name}</p>
@@ -98,7 +159,8 @@ export function AccountsDashboard() {
                 </p>
               </Link>
             </li>
-          ))
+            );
+          })
         ) : list && list.length === 0 ? (
           <li className="rounded-xl border border-dashed border-border bg-card/50 px-5 py-12 text-center text-sm text-muted-foreground">
             No accounts yet. Use{" "}
@@ -106,13 +168,15 @@ export function AccountsDashboard() {
             to create one.
           </li>
         ) : (
-          mockAccounts.map((acc) => (
+          mockAccounts.map((acc) => {
+            const AccountIcon = getAccountTypeIcon(acc.type);
+            return (
             <li
               key={acc.id}
               className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-5 py-4"
             >
               <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
-                <Landmark className="size-5" aria-hidden />
+                <AccountIcon className="size-5" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-foreground">{acc.name}</p>
@@ -125,7 +189,8 @@ export function AccountsDashboard() {
                 {formatMoney(acc.balance)}
               </p>
             </li>
-          ))
+            );
+          })
         )}
       </ul>
 

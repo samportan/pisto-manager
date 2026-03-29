@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/client";
 import {
   createAccount,
+  creditFieldsForAccountType,
   getAccountsByUserId,
   type Account,
   type NewAccount,
@@ -97,6 +98,13 @@ export function useAccounts(): UseAccountsResult {
         balance: values.balance,
         color: values.color,
         is_active: values.is_active,
+        ...creditFieldsForAccountType(values.type, {
+          credit_limit: values.credit_limit,
+          interest_rate: values.interest_rate,
+          minimum_payment: values.minimum_payment,
+          billing_cycle: values.billing_cycle,
+          due_date: values.due_date,
+        }),
       };
       return createMutation.mutateAsync(payload);
     },

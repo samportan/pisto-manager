@@ -5,8 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getAccountTypeIcon } from "@/lib/account-type-icons";
 import {
   ACCOUNT_TYPES,
+  creditFieldsForAccountType,
+  parseOptionalNumberInput,
   type AccountType,
   type NewAccountFormValues,
 } from "@/lib/db/accounts";
@@ -44,18 +47,38 @@ export function CreateAccountForm({
   const [balance, setBalance] = React.useState("");
   const [color, setColor] = React.useState<string>(COLOR_SWATCHES[2]);
   const [isActive, setIsActive] = React.useState(true);
+  const [creditLimit, setCreditLimit] = React.useState("");
+  const [creditApr, setCreditApr] = React.useState("");
+  const [creditMinPay, setCreditMinPay] = React.useState("");
+  const [billingCycle, setBillingCycle] = React.useState("");
+  const [dueDate, setDueDate] = React.useState("");
+
+  const TypeIcon = getAccountTypeIcon(type);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const parsed = parseFloat(balance);
     const balanceNum = Number.isFinite(parsed) ? parsed : 0;
-    await onSubmit?.({
+    const credit = creditFieldsForAccountType(type, {
+      credit_limit: parseOptionalNumberInput(creditLimit),
+      interest_rate: parseOptionalNumberInput(creditApr),
+      minimum_payment: parseOptionalNumberInput(creditMinPay),
+      billing_cycle: billingCycle.trim() || null,
+      due_date: dueDate || null,
+    });
+    const payload: NewAccountFormValues = {
       name: name.trim(),
       type,
       balance: balanceNum,
       color,
       is_active: isActive,
-    });
+      credit_limit: credit.credit_limit,
+      interest_rate: credit.interest_rate,
+      minimum_payment: credit.minimum_payment,
+      billing_cycle: credit.billing_cycle,
+      due_date: credit.due_date,
+    };
+    await onSubmit?.(payload);
   }
 
   return (
@@ -78,7 +101,10 @@ export function CreateAccountForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={`${id}-type`}>Type</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={`${id}-type`}>Type</Label>
+          <TypeIcon className="size-4 text-muted-foreground" aria-hidden />
+        </div>
         <select
           id={`${id}-type`}
           name="type"
@@ -97,7 +123,9 @@ export function CreateAccountForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={`${id}-balance`}>Starting balance</Label>
+        <Label htmlFor={`${id}-balance`}>
+          {type === "credit" ? "Available to spend" : "Starting balance"}
+        </Label>
         <Input
           id={`${id}-balance`}
           name="balance"
@@ -109,6 +137,62 @@ export function CreateAccountForm({
           placeholder="0.00"
         />
       </div>
+
+      {type === "credit" ? (
+        <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
+          <p className="text-sm font-medium text-foreground">Credit card</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor={`${id}-credit-limit`}>Credit limit</Label>
+              <Input
+                id={`${id}-credit-limit`}
+                inputMode="decimal"
+                value={creditLimit}
+                onChange={(e) => setCreditLimit(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`${id}-apr`}>APR (%)</Label>
+              <Input
+                id={`${id}-apr`}
+                inputMode="decimal"
+                value={creditApr}
+                onChange={(e) => setCreditApr(e.target.value)}
+                placeholder="e.g. 19.99"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={`${id}-min-pay`}>Minimum payment</Label>
+              <Input
+                id={`${id}-min-pay`}
+                inputMode="decimal"
+                value={creditMinPay}
+                onChange={(e) => setCreditMinPay(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor={`${id}-billing`}>Billing cycle</Label>
+              <Input
+                id={`${id}-billing`}
+                value={billingCycle}
+                onChange={(e) => setBillingCycle(e.target.value)}
+                placeholder="e.g. Monthly"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor={`${id}-due`}>Payment due date</Label>
+              <Input
+                id={`${id}-due`}
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         <Label>Color</Label>

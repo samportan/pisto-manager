@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AccountDetail } from "@/components/account-detail";
+import { AccountDetailPanel } from "@/components/account-detail-panel";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/server";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
@@ -56,5 +56,5 @@ export default async function AccountDetailPage({
     notFound();
   }
 
-  return <AccountDetail account={account} />;
+  return <AccountDetailPanel account={account} />;
 }
