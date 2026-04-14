@@ -1,4 +1,3 @@
-import { FunctionsHttpError } from "@supabase/functions-js";
 import { createClient } from "@/lib/client";
 
 export const financialSummaryKeys = {
@@ -47,11 +46,14 @@ export function parseUserFinancialSummary(raw: unknown): UserFinancialSummary {
   };
 }
 
+/** Duck-typed: avoids importing `@supabase/functions-js` (not a direct dep; breaks pnpm/Turbopack resolve). */
 function isFunctionsHttp401(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { name?: unknown; context?: unknown };
   return (
-    error instanceof FunctionsHttpError &&
-    error.context instanceof Response &&
-    error.context.status === 401
+    e.name === "FunctionsHttpError" &&
+    e.context instanceof Response &&
+    e.context.status === 401
   );
 }
 
