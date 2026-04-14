@@ -5,33 +5,18 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/client";
 import {
-  createAccount,
-  creditFieldsForAccountType,
-  getAccountsByUserId,
-  type Account,
-  type NewAccount,
-  type NewAccountFormValues,
-} from "@/lib/db/accounts";
-import { financialSummaryKeys } from "@/lib/financial-summary";
+  createCategory,
+  getCategoriesByUserId,
+  type NewCategory,
+  type NewCategoryFormValues,
+} from "@/lib/db/categories";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
-export const accountKeys = {
-  all: (userId: string) => ["accounts", userId] as const,
+export const categoryKeys = {
+  all: (userId: string) => ["categories", userId] as const,
 };
 
-export type UseAccountsResult = {
-  accounts: Account[];
-  isLoading: boolean;
-  isSessionReady: boolean;
-  userId: string | null;
-  error: Error | null;
-  refetch: () => Promise<unknown>;
-  createAccount: (values: NewAccountFormValues) => Promise<Account | null>;
-  isCreating: boolean;
-  createError: Error | null;
-};
-
-export function useAccounts(): UseAccountsResult {
+export function useCategories() {
   const queryClient = useQueryClient();
   const [userId, setUserId] = React.useState<string | null>(null);
   const [sessionReady, setSessionReady] = React.useState(false);
@@ -70,45 +55,35 @@ export function useAccounts(): UseAccountsResult {
     isSupabaseConfigured() && sessionReady && userId !== null;
 
   const query = useQuery({
-    queryKey: userId ? accountKeys.all(userId) : ["accounts", "idle"],
+    queryKey: userId ? categoryKeys.all(userId) : ["categories", "idle"],
     queryFn: async () => {
-      const rows = await getAccountsByUserId(userId!);
+      const rows = await getCategoriesByUserId(userId!);
       return rows ?? [];
     },
     enabled,
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: NewAccount) => createAccount(payload),
+    mutationFn: (payload: NewCategory) => createCategory(payload),
     onSuccess: () => {
       if (userId) {
-        void queryClient.invalidateQueries({ queryKey: accountKeys.all(userId) });
-        void queryClient.invalidateQueries({
-          queryKey: financialSummaryKeys.all(userId),
-        });
+        void queryClient.invalidateQueries({ queryKey: categoryKeys.all(userId) });
       }
     },
   });
 
   const create = React.useCallback(
-    async (values: NewAccountFormValues) => {
+    async (values: NewCategoryFormValues) => {
       if (!userId) {
-        throw new Error("You must be signed in to create an account.");
+        throw new Error("You must be signed in to create a category.");
       }
-      const payload: NewAccount = {
+      const payload: NewCategory = {
         user_id: userId,
-        name: values.name,
+        name: values.name.trim(),
         type: values.type,
-        balance: values.balance,
+        parent_category_id: null,
+        icon: null,
         color: values.color,
-        is_active: values.is_active,
-        ...creditFieldsForAccountType(values.type, {
-          credit_limit: values.credit_limit,
-          interest_rate: values.interest_rate,
-          minimum_payment: values.minimum_payment,
-          billing_cycle: values.billing_cycle,
-          due_date: values.due_date,
-        }),
       };
       return createMutation.mutateAsync(payload);
     },
@@ -119,14 +94,16 @@ export function useAccounts(): UseAccountsResult {
     !sessionReady || (enabled && query.isLoading);
 
   return {
-    accounts: query.data ?? [],
+    categories: query.data ?? [],
     isLoading,
     isSessionReady: sessionReady,
     userId,
     error: query.error as Error | null,
     refetch: query.refetch,
-    createAccount: create,
+    createCategory: create,
     isCreating: createMutation.isPending,
     createError: createMutation.error as Error | null,
   };
 }
+
+export type { NewCategoryFormValues } from "@/lib/db/categories";

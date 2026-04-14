@@ -5,33 +5,32 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/client";
 import {
-  createAccount,
-  creditFieldsForAccountType,
-  getAccountsByUserId,
-  type Account,
-  type NewAccount,
-  type NewAccountFormValues,
-} from "@/lib/db/accounts";
+  createTransaction,
+  getTransactionsByUserId,
+  type NewTransaction,
+  type NewTransactionFormValues,
+  type Transaction,
+} from "@/lib/db/transactions";
 import { financialSummaryKeys } from "@/lib/financial-summary";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
-export const accountKeys = {
-  all: (userId: string) => ["accounts", userId] as const,
+export const transactionKeys = {
+  all: (userId: string) => ["transactions", userId] as const,
 };
 
-export type UseAccountsResult = {
-  accounts: Account[];
+export type UseTransactionsResult = {
+  transactions: Transaction[];
   isLoading: boolean;
   isSessionReady: boolean;
   userId: string | null;
   error: Error | null;
   refetch: () => Promise<unknown>;
-  createAccount: (values: NewAccountFormValues) => Promise<Account | null>;
+  createTransaction: (values: NewTransactionFormValues) => Promise<Transaction | null>;
   isCreating: boolean;
   createError: Error | null;
 };
 
-export function useAccounts(): UseAccountsResult {
+export function useTransactions(): UseTransactionsResult {
   const queryClient = useQueryClient();
   const [userId, setUserId] = React.useState<string | null>(null);
   const [sessionReady, setSessionReady] = React.useState(false);
@@ -70,19 +69,19 @@ export function useAccounts(): UseAccountsResult {
     isSupabaseConfigured() && sessionReady && userId !== null;
 
   const query = useQuery({
-    queryKey: userId ? accountKeys.all(userId) : ["accounts", "idle"],
+    queryKey: userId ? transactionKeys.all(userId) : ["transactions", "idle"],
     queryFn: async () => {
-      const rows = await getAccountsByUserId(userId!);
+      const rows = await getTransactionsByUserId(userId!);
       return rows ?? [];
     },
     enabled,
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: NewAccount) => createAccount(payload),
+    mutationFn: (payload: NewTransaction) => createTransaction(payload),
     onSuccess: () => {
       if (userId) {
-        void queryClient.invalidateQueries({ queryKey: accountKeys.all(userId) });
+        void queryClient.invalidateQueries({ queryKey: transactionKeys.all(userId) });
         void queryClient.invalidateQueries({
           queryKey: financialSummaryKeys.all(userId),
         });
@@ -91,24 +90,19 @@ export function useAccounts(): UseAccountsResult {
   });
 
   const create = React.useCallback(
-    async (values: NewAccountFormValues) => {
+    async (values: NewTransactionFormValues) => {
       if (!userId) {
-        throw new Error("You must be signed in to create an account.");
+        throw new Error("You must be signed in to add a transaction.");
       }
-      const payload: NewAccount = {
+      const payload: NewTransaction = {
         user_id: userId,
-        name: values.name,
+        account_id: values.account_id,
+        category_id: values.category_id,
         type: values.type,
-        balance: values.balance,
-        color: values.color,
-        is_active: values.is_active,
-        ...creditFieldsForAccountType(values.type, {
-          credit_limit: values.credit_limit,
-          interest_rate: values.interest_rate,
-          minimum_payment: values.minimum_payment,
-          billing_cycle: values.billing_cycle,
-          due_date: values.due_date,
-        }),
+        amount: values.amount,
+        date: values.date,
+        destination_account_id: values.destination_account_id,
+        description: values.description,
       };
       return createMutation.mutateAsync(payload);
     },
@@ -119,14 +113,16 @@ export function useAccounts(): UseAccountsResult {
     !sessionReady || (enabled && query.isLoading);
 
   return {
-    accounts: query.data ?? [],
+    transactions: query.data ?? [],
     isLoading,
     isSessionReady: sessionReady,
     userId,
     error: query.error as Error | null,
     refetch: query.refetch,
-    createAccount: create,
+    createTransaction: create,
     isCreating: createMutation.isPending,
     createError: createMutation.error as Error | null,
   };
 }
+
+export type { NewTransactionFormValues };
