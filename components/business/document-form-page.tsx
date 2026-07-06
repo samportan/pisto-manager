@@ -50,7 +50,7 @@ export function DocumentFormPage({
   summaryTitle,
 }: DocumentFormPageProps) {
   return (
-    <div className="flex min-h-full flex-1 flex-col pb-24 lg:pb-8">
+    <div className="flex min-h-full flex-1 flex-col pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-8">
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <Link
           href={backHref}
@@ -77,7 +77,7 @@ export function DocumentFormPage({
             e.preventDefault();
             onSubmit();
           }}
-          className="grid gap-6 lg:grid-cols-[1fr_17rem] lg:items-start xl:grid-cols-[1fr_19rem]"
+          className="grid gap-6 md:grid-cols-[1fr_17rem] md:items-start xl:grid-cols-[1fr_19rem]"
         >
           <div className="space-y-6">
             <Card>
@@ -94,13 +94,13 @@ export function DocumentFormPage({
               <CardContent className="space-y-4">{linesContent}</CardContent>
             </Card>
 
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-4 lg:hidden">
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-4 md:hidden">
               <span className="text-sm font-medium text-muted-foreground">{totalLabel}</span>
               <span className="text-xl font-bold tabular-nums">{totalFormatted}</span>
             </div>
           </div>
 
-          <aside className="hidden lg:block">
+          <aside className="hidden md:block">
             <div className="sticky top-6 space-y-4">
               <Card>
                 <CardHeader>
@@ -126,18 +126,18 @@ export function DocumentFormPage({
 
       <div
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden"
+          "fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[55] border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
         )}
       >
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">{totalLabel}</p>
             <p className="truncate text-lg font-bold tabular-nums">{totalFormatted}</p>
           </div>
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" size="sm" className="shrink-0 sm:size-default" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button type="submit" form="document-form" disabled={isSubmitting}>
+          <Button type="submit" form="document-form" size="sm" className="shrink-0 sm:size-default" disabled={isSubmitting}>
             {isSubmitting ? savingLabel : submitLabel}
           </Button>
         </div>
