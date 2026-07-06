@@ -31,6 +31,10 @@ export const metadata: Metadata = {
     template: "%s — Pisto",
   },
   description: "Personal finance manager",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

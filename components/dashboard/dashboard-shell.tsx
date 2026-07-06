@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Settings } from "lucide-react";
+import { PistoLogo } from "@/components/pisto-logo";
 import { BottomNav } from "@/components/nav/bottom-nav";
 import { AppSidebar } from "@/components/nav/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,10 +33,7 @@ export function DashboardShell({
             href="/dashboard"
             className="flex items-center gap-2 md:hidden"
           >
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-              P
-            </span>
-            <span className="text-sm font-bold tracking-tight">Pisto</span>
+            <PistoLogo size={32} showLabel />
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground sm:inline">

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PistoLogo } from "@/components/pisto-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 type AuthPageShellProps = {
@@ -22,10 +23,18 @@ export function AuthPageShell({
 
       <main className="relative z-10 mx-auto flex w-full max-w-[min(100%,24rem)] flex-1 flex-col justify-center px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
         <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-          <div className="mb-8 space-y-2 text-center">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              {eyebrow}
-            </p>
+          <div className="mb-8 space-y-3 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <PistoLogo size={48} />
+              <span className="text-sm font-bold tracking-tight text-foreground">
+                Pisto
+              </span>
+              {eyebrow !== "Pisto" ? (
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  {eyebrow}
+                </p>
+              ) : null}
+            </div>
             <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
             <p className="text-sm text-muted-foreground">{subtitle}</p>
           </div>
