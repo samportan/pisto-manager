@@ -4,12 +4,12 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { DocumentFormPage } from "@/components/business/document-form-page";
+import { ContactPicker } from "@/components/business/contact-picker";
 import { ProductPicker } from "@/components/business/product-picker";
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/select-native";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -144,19 +144,17 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor="po-supplier">{t("business.supplier")}</Label>
-        <NativeSelect
+        <ContactPicker
           id="po-supplier"
+          contacts={suppliers}
           value={supplierId}
-          onChange={(e) => setSupplierId(e.target.value)}
+          onValueChange={setSupplierId}
+          allowEmpty
+          emptyLabel={t("business.noSupplier")}
+          searchPlaceholder={t("business.searchSuppliers")}
+          noMatchLabel={t("business.noSuppliersMatch")}
           className="h-11 text-base sm:h-10"
-        >
-          <option value="">{t("business.noSupplier")}</option>
-          {suppliers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </NativeSelect>
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="po-date">{t("business.date")}</Label>
