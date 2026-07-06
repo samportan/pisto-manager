@@ -82,7 +82,7 @@ function SaleDetailBody({ saleId }: { saleId: string }) {
 export function SalesView() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
-  const { sales, deleteSale, isLoading } = useSales();
+  const { sales, deleteSale, isLoading, isDeleting } = useSales();
   const { contacts } = useContacts();
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -253,11 +253,15 @@ export function SalesView() {
 
       <ConfirmDialog
         open={!!deleteId}
-        onOpenChange={(o) => !o && setDeleteId(null)}
+        onOpenChange={(o) => {
+          if (!o && !isDeleting) setDeleteId(null);
+        }}
         title={t("business.removeSaleTitle")}
         description={t("business.removeSaleDescription")}
         confirmLabel={t("business.remove")}
+        pendingLabel={t("common.deleting")}
         variant="destructive"
+        isPending={isDeleting}
         onConfirm={async () => {
           if (deleteId) await deleteSale(deleteId);
         }}

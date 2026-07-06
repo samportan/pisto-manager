@@ -2,6 +2,9 @@
   "plugins": {
     "supabase": {
       "enabled": true
+    },
+    "auth0": {
+      "enabled": true
     }
   }
 }

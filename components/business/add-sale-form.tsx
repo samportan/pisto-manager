@@ -4,6 +4,7 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { DocumentFormPage } from "@/components/business/document-form-page";
+import { ProductPicker } from "@/components/business/product-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -209,18 +210,13 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
             <div key={row.key} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
               <div className="space-y-1.5">
                 <Label className="text-muted-foreground">{t("business.product")}</Label>
-                <NativeSelect
+                <ProductPicker
+                  products={pickerProducts}
                   value={row.product_id}
-                  onChange={(e) => setLine(row.key, { product_id: e.target.value })}
+                  onValueChange={(productId) => setLine(row.key, { product_id: productId })}
+                  showStock
                   className="h-11 text-base"
-                >
-                  <option value="">{t("business.selectProduct")}</option>
-                  {pickerProducts.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({t("business.stockLabel", { count: String(p.stock) })})
-                    </option>
-                  ))}
-                </NativeSelect>
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -287,18 +283,13 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
               return (
                 <TableRow key={row.key}>
                   <TableCell>
-                    <NativeSelect
+                    <ProductPicker
+                      products={pickerProducts}
                       value={row.product_id}
-                      onChange={(e) => setLine(row.key, { product_id: e.target.value })}
+                      onValueChange={(productId) => setLine(row.key, { product_id: productId })}
+                      showStock
                       className="h-10 w-full min-w-[12rem]"
-                    >
-                      <option value="">{t("business.selectProduct")}</option>
-                      {pickerProducts.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({t("business.stockLabel", { count: String(p.stock) })})
-                        </option>
-                      ))}
-                    </NativeSelect>
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <Input

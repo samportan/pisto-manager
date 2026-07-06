@@ -141,6 +141,7 @@
     "productsSubtitle": "Catálogo, precios e inventario. El stock bajo se muestra automáticamente.",
     "newProduct": "Nuevo producto",
     "searchProducts": "Buscar productos…",
+    "noProductsMatch": "Ningún producto coincide con tu búsqueda.",
     "noProducts": "Aún no hay productos. Crea uno para empezar a vender.",
     "removeProductTitle": "¿Quitar producto?",
     "removeProductDescription": "Se elimina suavemente de las listas. Las líneas de ventas históricas no cambian.",

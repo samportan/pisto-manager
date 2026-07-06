@@ -82,7 +82,7 @@ function PurchaseDetailBody({ purchaseId }: { purchaseId: string }) {
 export function PurchasesView() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
-  const { purchases, deletePurchase, isLoading } = usePurchases();
+  const { purchases, deletePurchase, isLoading, isDeleting } = usePurchases();
   const { contacts } = useContacts();
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
@@ -255,11 +255,15 @@ export function PurchasesView() {
 
       <ConfirmDialog
         open={!!deleteId}
-        onOpenChange={(o) => !o && setDeleteId(null)}
+        onOpenChange={(o) => {
+          if (!o && !isDeleting) setDeleteId(null);
+        }}
         title={t("business.removePurchaseTitle")}
         description={t("business.removePurchaseDescription")}
         confirmLabel={t("business.remove")}
+        pendingLabel={t("common.deleting")}
         variant="destructive"
+        isPending={isDeleting}
         onConfirm={async () => {
           if (deleteId) await deletePurchase(deleteId);
         }}

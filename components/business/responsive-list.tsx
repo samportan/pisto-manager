@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/hooks/useTranslations";
 import { cn } from "@/lib/utils";
 
 type ResponsiveListProps<T> = {
@@ -44,6 +45,8 @@ export function ResponsiveList<T>({
   renderCard,
   className,
 }: ResponsiveListProps<T>) {
+  const { t } = useT();
+  const resolvedEmptyLabel = emptyLabel ?? t("common.noRows");
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   const table = useReactTable({
@@ -77,7 +80,7 @@ export function ResponsiveList<T>({
           className
         )}
       >
-        {emptyLabel}
+        {resolvedEmptyLabel}
       </p>
     );
   }
@@ -106,7 +109,7 @@ export function ResponsiveList<T>({
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  No matches.
+                  {t("common.noMatches")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -127,7 +130,7 @@ export function ResponsiveList<T>({
       <div className="space-y-3 md:hidden">
         {rows.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-10 text-center text-sm text-muted-foreground">
-            No matches.
+            {t("common.noMatches")}
           </p>
         ) : (
           rows.map((row) => (

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PendingLabel } from "@/components/ui/pending-label";
 import { cn } from "@/lib/utils";
 
 type DocumentFormPageProps = {
@@ -79,6 +80,7 @@ export function DocumentFormPage({
           }}
           className="grid gap-6 md:grid-cols-[1fr_17rem] md:items-start xl:grid-cols-[1fr_19rem]"
         >
+          <fieldset disabled={isSubmitting} className="contents">
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -113,14 +115,26 @@ export function DocumentFormPage({
               </Card>
               <div className="flex flex-col gap-2">
                 <Button type="submit" size="lg" disabled={isSubmitting} className="w-full">
-                  {isSubmitting ? savingLabel : submitLabel}
+                  {isSubmitting ? (
+                    <PendingLabel label={savingLabel} spinnerClassName="size-3.5" />
+                  ) : (
+                    submitLabel
+                  )}
                 </Button>
-                <Button type="button" variant="outline" size="lg" className="w-full" onClick={onCancel}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={onCancel}
+                  disabled={isSubmitting}
+                >
                   {cancelLabel}
                 </Button>
               </div>
             </div>
           </aside>
+          </fieldset>
         </form>
       </div>
 
@@ -134,11 +148,28 @@ export function DocumentFormPage({
             <p className="text-xs text-muted-foreground">{totalLabel}</p>
             <p className="truncate text-lg font-bold tabular-nums">{totalFormatted}</p>
           </div>
-          <Button type="button" variant="outline" size="sm" className="shrink-0 sm:size-default" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 sm:size-default"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
             {cancelLabel}
           </Button>
-          <Button type="submit" form="document-form" size="sm" className="shrink-0 sm:size-default" disabled={isSubmitting}>
-            {isSubmitting ? savingLabel : submitLabel}
+          <Button
+            type="submit"
+            form="document-form"
+            size="sm"
+            className="shrink-0 sm:size-default"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <PendingLabel label={savingLabel} spinnerClassName="size-3.5" />
+            ) : (
+              submitLabel
+            )}
           </Button>
         </div>
       </div>

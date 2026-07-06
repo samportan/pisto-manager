@@ -348,10 +348,13 @@ export function OverviewDashboard() {
       />
       <ConfirmDialog
         open={deleteId != null}
-        onOpenChange={(o) => !o && setDeleteId(null)}
+        onOpenChange={(o) => {
+          if (!o && !isDeleting) setDeleteId(null);
+        }}
         title={t("transactions.deleteTitle")}
         description={t("transactions.deleteDescription")}
         confirmLabel={t("common.delete")}
+        pendingLabel={t("common.deleting")}
         variant="destructive"
         isPending={isDeleting}
         onConfirm={async () => {

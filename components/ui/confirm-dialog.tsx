@@ -4,6 +4,7 @@ import * as React from "react";
 import { Dialog } from "@base-ui/react/dialog";
 
 import { Button } from "@/components/ui/button";
+import { PendingLabel } from "@/components/ui/pending-label";
 import { cn } from "@/lib/utils";
 
 type ConfirmDialogProps = {
@@ -13,6 +14,7 @@ type ConfirmDialogProps = {
   description?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  pendingLabel?: string;
   variant?: "default" | "destructive";
   isPending?: boolean;
   onConfirm: () => void | Promise<void>;
@@ -25,6 +27,7 @@ export function ConfirmDialog({
   description,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
+  pendingLabel,
   variant = "default",
   isPending,
   onConfirm,
@@ -76,7 +79,11 @@ export function ConfirmDialog({
                 })();
               }}
             >
-              {isPending ? "…" : confirmLabel}
+              {isPending ? (
+                <PendingLabel label={pendingLabel ?? confirmLabel} spinnerClassName="size-3.5" />
+              ) : (
+                confirmLabel
+              )}
             </Button>
           </div>
         </Dialog.Popup>

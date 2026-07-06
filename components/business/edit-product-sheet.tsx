@@ -5,6 +5,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PendingLabel } from "@/components/ui/pending-label";
 import {
   Sheet,
   SheetContent,
@@ -13,6 +14,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useT } from "@/hooks/useTranslations";
 import type { NewProduct, Product } from "@/lib/db/products";
 
 type ProductFormValues = Omit<NewProduct, "user_id" | "organization_id">;
@@ -26,6 +28,7 @@ type Props = {
 };
 
 export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubmitting }: Props) {
+  const { t } = useT();
   const [name, setName] = React.useState("");
   const [sku, setSku] = React.useState("");
   const [salePrice, setSalePrice] = React.useState("0");
@@ -33,6 +36,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
   const [stock, setStock] = React.useState("0");
   const [minStock, setMinStock] = React.useState("0");
   const [isActive, setIsActive] = React.useState(true);
+  const [stockTouched, setStockTouched] = React.useState(false);
 
   React.useEffect(() => {
     if (!open || !product) return;
@@ -43,20 +47,24 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
     setStock(String(product.stock));
     setMinStock(String(product.min_stock ?? 0));
     setIsActive(product.is_active);
+    setStockTouched(false);
   }, [open, product]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await onSubmit({
+      const patch: Partial<ProductFormValues> = {
         name: name.trim(),
         sku: sku.trim() || null,
         sale_price: Number(salePrice) || 0,
         cost_price: Number(costPrice) || 0,
-        stock: Number(stock) || 0,
         min_stock: Number(minStock) || 0,
         is_active: isActive,
-      });
+      };
+      if (stockTouched) {
+        patch.stock = Number(stock) || 0;
+      }
+      await onSubmit(patch);
       onOpenChange(false);
     } catch {
       // parent surfaced error; keep sheet open
@@ -64,13 +72,16 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        if (!isSubmitting) onOpenChange(o);
+      }}
+    >
       <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-md">
         <SheetHeader className="border-b border-border px-4 py-4 text-left">
-          <SheetTitle>Edit product</SheetTitle>
-          <SheetDescription>
-            Update catalog details, pricing, or inventory levels.
-          </SheetDescription>
+          <SheetTitle>{t("business.editProductTitle")}</SheetTitle>
+          <SheetDescription>{t("business.editProductDescription")}</SheetDescription>
         </SheetHeader>
         <form
           onSubmit={(e) => {
@@ -79,28 +90,29 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
           className="flex max-h-[calc(100dvh-6rem)] flex-col"
         >
           <div className="space-y-4 overflow-y-auto overscroll-contain px-4 py-6">
+            <fieldset disabled={isSubmitting} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ep-name">Name</Label>
+              <Label htmlFor="ep-name">{t("business.name")}</Label>
               <Input
                 id="ep-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Cold brew 12oz"
+                placeholder={t("business.namePlaceholder")}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ep-sku">SKU</Label>
+              <Label htmlFor="ep-sku">{t("business.sku")}</Label>
               <Input
                 id="ep-sku"
                 value={sku}
                 onChange={(e) => setSku(e.target.value)}
-                placeholder="Internal code"
+                placeholder={t("business.skuPlaceholder")}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="ep-sale">Sale price</Label>
+                <Label htmlFor="ep-sale">{t("business.salePrice")}</Label>
                 <Input
                   id="ep-sale"
                   type="number"
@@ -112,7 +124,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ep-cost">Cost price</Label>
+                <Label htmlFor="ep-cost">{t("business.costPrice")}</Label>
                 <Input
                   id="ep-cost"
                   type="number"
@@ -126,7 +138,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="ep-stock">Stock on hand</Label>
+                <Label htmlFor="ep-stock">{t("business.stockOnHand")}</Label>
                 <Input
                   id="ep-stock"
                   type="number"
@@ -134,11 +146,14 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
                   step="0.01"
                   min="0"
                   value={stock}
-                  onChange={(e) => setStock(e.target.value)}
+                  onChange={(e) => {
+                    setStockTouched(true);
+                    setStock(e.target.value);
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ep-min">Reorder at (min)</Label>
+                <Label htmlFor="ep-min">{t("business.reorderAt")}</Label>
                 <Input
                   id="ep-min"
                   type="number"
@@ -157,15 +172,25 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
                 onChange={(e) => setIsActive(e.target.checked)}
                 className="size-4 rounded border-border"
               />
-              Active (shown in pickers)
+              {t("business.activeInPickers")}
             </label>
+            </fieldset>
           </div>
           <SheetFooter className="mt-auto border-t border-border bg-card/50 px-4 py-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={isSubmitting || !product}>
-              {isSubmitting ? "Saving…" : "Save changes"}
+              {isSubmitting ? (
+                <PendingLabel label={t("common.saving")} spinnerClassName="size-3.5" />
+              ) : (
+                t("business.saveChanges")
+              )}
             </Button>
           </SheetFooter>
         </form>

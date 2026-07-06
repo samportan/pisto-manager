@@ -13,11 +13,14 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { useProducts } from "@/hooks/useProducts";
+import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
 import type { Product } from "@/lib/db/products";
 
 export function ProductsView() {
-  const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isLoading } =
+  const { t, intlLocale, currency } = useT();
+  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
     useProducts();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<Product | null>(null);
@@ -29,35 +32,37 @@ export function ProductsView() {
     () => [
       {
         accessorKey: "name",
-        header: "Product",
+        header: t("business.product"),
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.name}</p>
             {row.original.sku ? (
-              <p className="text-xs text-muted-foreground tabular-nums">SKU {row.original.sku}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {t("business.sku")} {row.original.sku}
+              </p>
             ) : null}
           </div>
         ),
       },
       {
         accessorKey: "sale_price",
-        header: "Sale",
+        header: t("business.sale"),
         cell: ({ row }) => (
-          <span className="tabular-nums">{formatMoney(Number(row.original.sale_price))}</span>
+          <span className="tabular-nums">{fmt(Number(row.original.sale_price))}</span>
         ),
       },
       {
         accessorKey: "cost_price",
-        header: "Cost",
+        header: t("business.cost"),
         cell: ({ row }) => (
           <span className="tabular-nums text-muted-foreground">
-            {formatMoney(Number(row.original.cost_price))}
+            {fmt(Number(row.original.cost_price))}
           </span>
         ),
       },
       {
         accessorKey: "stock",
-        header: "Stock",
+        header: t("business.stock"),
         cell: ({ row }) => {
           const low =
             (row.original.min_stock ?? 0) > 0 &&
@@ -67,7 +72,7 @@ export function ProductsView() {
               <span className="tabular-nums font-medium">{row.original.stock}</span>
               {low ? (
                 <Badge variant="destructive" className="text-[0.65rem]">
-                  Low
+                  {t("business.low")}
                 </Badge>
               ) : null}
             </div>
@@ -76,10 +81,10 @@ export function ProductsView() {
       },
       {
         accessorKey: "is_active",
-        header: "Status",
+        header: t("business.status"),
         cell: ({ row }) => (
           <Badge variant={row.original.is_active ? "secondary" : "outline"}>
-            {row.original.is_active ? "Active" : "Inactive"}
+            {row.original.is_active ? t("business.active") : t("business.inactive")}
           </Badge>
         ),
       },
@@ -109,19 +114,19 @@ export function ProductsView() {
         ),
       },
     ],
-    []
+    [fmt, t]
   );
 
   return (
     <div className="flex-1">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <PageHeader
-          title="Products"
-          description="Catalog, pricing, and inventory. Low stock surfaces automatically."
+          title={t("business.productsTitle")}
+          description={t("business.productsSubtitle")}
           actions={
             <Button type="button" size="sm" className="gap-1.5" onClick={() => setSheetOpen(true)}>
               <Plus className="size-4" aria-hidden />
-              New product
+              {t("business.newProduct")}
             </Button>
           }
         />
@@ -139,7 +144,7 @@ export function ProductsView() {
           />
           <Input
             type="search"
-            placeholder="Search products…"
+            placeholder={t("business.searchProducts")}
             className="h-10 pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -151,7 +156,7 @@ export function ProductsView() {
           columns={columns}
           globalFilter={search}
           isLoading={isLoading}
-          emptyLabel="No products yet. Create one to start selling."
+          emptyLabel={t("business.noProducts")}
           getRowKey={(p) => p.id}
           renderCard={(p) => {
             const low = (p.min_stock ?? 0) > 0 && Number(p.stock) <= Number(p.min_stock ?? 0);
@@ -161,31 +166,33 @@ export function ProductsView() {
                   <div>
                     <p className="font-semibold">{p.name}</p>
                     {p.sku ? (
-                      <p className="text-xs text-muted-foreground">SKU {p.sku}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("business.sku")} {p.sku}
+                      </p>
                     ) : null}
                   </div>
                   <Badge variant={p.is_active ? "secondary" : "outline"}>
-                    {p.is_active ? "Active" : "Inactive"}
+                    {p.is_active ? t("business.active") : t("business.inactive")}
                   </Badge>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <dt className="text-xs text-muted-foreground">Sale</dt>
-                    <dd className="font-medium tabular-nums">{formatMoney(Number(p.sale_price))}</dd>
+                    <dt className="text-xs text-muted-foreground">{t("business.sale")}</dt>
+                    <dd className="font-medium tabular-nums">{fmt(Number(p.sale_price))}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-muted-foreground">Cost</dt>
+                    <dt className="text-xs text-muted-foreground">{t("business.cost")}</dt>
                     <dd className="tabular-nums text-muted-foreground">
-                      {formatMoney(Number(p.cost_price))}
+                      {fmt(Number(p.cost_price))}
                     </dd>
                   </div>
                   <div className="col-span-2 flex items-center justify-between rounded-md bg-muted/30 px-2 py-1.5">
-                    <span className="text-xs text-muted-foreground">Stock</span>
+                    <span className="text-xs text-muted-foreground">{t("business.stock")}</span>
                     <span className="flex items-center gap-2 font-semibold tabular-nums">
                       {p.stock}
                       {low ? (
                         <Badge variant="destructive" className="text-[0.65rem]">
-                          Low
+                          {t("business.low")}
                         </Badge>
                       ) : null}
                     </span>
@@ -198,7 +205,7 @@ export function ProductsView() {
                     size="sm"
                     onClick={() => setEditProduct(p)}
                   >
-                    Edit
+                    {t("common.edit")}
                   </Button>
                   <Button
                     type="button"
@@ -207,7 +214,7 @@ export function ProductsView() {
                     className="text-destructive"
                     onClick={() => setDeleteId(p.id)}
                   >
-                    Remove
+                    {t("business.remove")}
                   </Button>
                 </div>
               </div>
@@ -227,7 +234,7 @@ export function ProductsView() {
           try {
             await updateProduct({ id: editProduct.id, patch: values });
           } catch (e) {
-            setFormError(e instanceof Error ? e.message : "Could not save");
+            setFormError(e instanceof Error ? e.message : t("common.errorSave"));
             throw e;
           }
         }}
@@ -242,7 +249,7 @@ export function ProductsView() {
           try {
             await createProduct(values);
           } catch (e) {
-            setFormError(e instanceof Error ? e.message : "Could not save");
+            setFormError(e instanceof Error ? e.message : t("common.errorSave"));
             throw e;
           }
         }}
@@ -250,11 +257,15 @@ export function ProductsView() {
 
       <ConfirmDialog
         open={!!deleteId}
-        onOpenChange={(o) => !o && setDeleteId(null)}
-        title="Remove product?"
-        description="Soft-deleted from lists. Historical sales lines stay unchanged."
-        confirmLabel="Remove"
+        onOpenChange={(o) => {
+          if (!o && !isDeleting) setDeleteId(null);
+        }}
+        title={t("business.removeProductTitle")}
+        description={t("business.removeProductDescription")}
+        confirmLabel={t("business.remove")}
+        pendingLabel={t("common.deleting")}
         variant="destructive"
+        isPending={isDeleting}
         onConfirm={async () => {
           if (deleteId) await deleteProduct(deleteId);
         }}

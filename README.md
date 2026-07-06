@@ -2,16 +2,19 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and run the development server (this project uses **npm** only):
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+
+> Use npm exclusively — do not mix with pnpm or yarn. Vercel detects `package-lock.json` and builds with npm automatically.
+
+If `npm install` fails with SSL/certificate errors on Windows, run:
+
+```powershell
+$env:NODE_OPTIONS="--use-system-ca"; npm install
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.

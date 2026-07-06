@@ -141,6 +141,7 @@
     "productsSubtitle": "Catalog, pricing, and inventory. Low stock surfaces automatically.",
     "newProduct": "New product",
     "searchProducts": "Search products…",
+    "noProductsMatch": "No products match your search.",
     "noProducts": "No products yet. Create one to start selling.",
     "removeProductTitle": "Remove product?",
     "removeProductDescription": "Soft-deleted from lists. Historical sales lines stay unchanged.",

@@ -263,10 +263,13 @@ export function TransactionsView() {
 
       <ConfirmDialog
         open={deleteId != null}
-        onOpenChange={(o) => !o && setDeleteId(null)}
+        onOpenChange={(o) => {
+          if (!o && !isDeleting) setDeleteId(null);
+        }}
         title="Delete transaction?"
         description="Removed permanently. Net worth and budgets update on next refresh."
         confirmLabel="Delete"
+        pendingLabel="Deleting…"
         variant="destructive"
         isPending={isDeleting}
         onConfirm={async () => {
