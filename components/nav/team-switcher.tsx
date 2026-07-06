@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateOrganizationSheet } from "@/components/create-organization-sheet";
@@ -8,7 +9,8 @@ import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { cn } from "@/lib/utils";
 
 export function TeamSwitcher() {
-  const { activeOrg, organizations, setActiveOrgId } = useActiveOrganization();
+  const router = useRouter();
+  const { activeOrg, organizations, setWorkspace } = useActiveOrganization();
   const [open, setOpen] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
   const boxRef = React.useRef<HTMLDivElement>(null);
@@ -43,8 +45,9 @@ export function TeamSwitcher() {
                 activeOrg.kind === "personal" && "bg-muted"
               )}
               onClick={() => {
-                setActiveOrgId(null);
+                setWorkspace("personal");
                 setOpen(false);
+                router.push("/dashboard");
               }}
             >
               Personal
@@ -57,8 +60,9 @@ export function TeamSwitcher() {
                   activeOrg.kind === "business" && activeOrg.id === org.id && "bg-muted"
                 )}
                 onClick={() => {
-                  setActiveOrgId(org.id);
+                  setWorkspace("business", org.id);
                   setOpen(false);
+                  router.push("/dashboard/business");
                 }}
               >
                 {org.name}
@@ -81,7 +85,10 @@ export function TeamSwitcher() {
       <CreateOrganizationSheet
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={(id) => setActiveOrgId(id)}
+        onCreated={(id) => {
+          setWorkspace("business", id);
+          router.push("/dashboard/business");
+        }}
       />
     </>
   );

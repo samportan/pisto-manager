@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, Plus, Search, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/business/page-header";
+import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { ResponsiveList } from "@/components/business/responsive-list";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -27,10 +28,12 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
+import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { usePurchases } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
+import { buildPurchasesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { PurchaseWithMeta } from "@/lib/db/purchases";
 
 function PurchaseDetailBody({ purchaseId }: { purchaseId: string }) {
@@ -84,9 +87,11 @@ export function PurchasesView() {
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
   const { purchases, deletePurchase, isLoading, isDeleting } = usePurchases();
   const { contacts } = useContacts();
+  const { activeOrgId } = useActiveOrganization();
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [detailId, setDetailId] = React.useState<string | null>(null);
+  const [exporting, setExporting] = React.useState(false);
 
   const contactName = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -175,10 +180,29 @@ export function PurchasesView() {
           title={t("business.purchasesTitle")}
           description={t("business.purchasesSubtitleStock")}
           actions={
-            <Button type="button" size="sm" className="gap-1.5" render={<Link href="/dashboard/business/purchases/new" />}>
+            <div className="flex flex-wrap gap-2">
+              <ExportExcelButton
+                label={t("business.downloadExcel")}
+                isExporting={exporting}
+                onExport={async () => {
+                  if (!activeOrgId) return;
+                  setExporting(true);
+                  try {
+                    const sheets = await buildPurchasesWorkbook(activeOrgId, purchases, contacts, {
+                      purchases: t("business.sheetPurchases"),
+                      purchaseLines: t("business.sheetPurchaseLines"),
+                    });
+                    downloadWorkbook(sheets, todayFilename("compras"));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+              />
+              <Button type="button" size="sm" className="gap-1.5" render={<Link href="/dashboard/business/purchases/new" />}>
                 <Plus className="size-4" aria-hidden />
                 {t("business.newPurchase")}
-            </Button>
+              </Button>
+            </div>
           }
         />
 

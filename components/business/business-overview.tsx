@@ -3,20 +3,31 @@
 import { useMemo } from "react";
 import Link from "next/link";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BusinessRevenuePurchasesChart,
+  HorizontalBarChart,
+} from "@/components/business/business-overview-charts";
+import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
+import { useProductInsights } from "@/hooks/useProductInsights";
 import { useProducts } from "@/hooks/useProducts";
 import { usePurchases } from "@/hooks/usePurchases";
 import { useSales } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
+import { getLastNMonthsBusinessTotals } from "@/lib/analytics/business";
+import {
+  getProductSalesRanking,
+  getTopProductsByRevenue,
+} from "@/lib/analytics/business-products";
 import { formatMoney } from "@/lib/format-money";
 
 export function BusinessOverview() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
   const { products, isLoading: productsLoading } = useProducts();
-  const { sales, isLoading: salesLoading } = useSales({ includeDeleted: true });
-  const { purchases, isLoading: purchasesLoading } = usePurchases({ includeDeleted: true });
-  const isLoading = productsLoading || salesLoading || purchasesLoading;
+  const { sales, isLoading: salesLoading } = useSales();
+  const { purchases, isLoading: purchasesLoading } = usePurchases();
+  const { saleItems, isLoading: insightsLoading } = useProductInsights();
+  const isLoading = productsLoading || salesLoading || purchasesLoading || insightsLoading;
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -38,6 +49,19 @@ export function BusinessOverview() {
     return { revenue, expense, lowStock, margin: revenue - expense };
   }, [products, purchases, sales]);
 
+  const chartMonths = useMemo(
+    () => getLastNMonthsBusinessTotals(sales, purchases, 6),
+    [sales, purchases]
+  );
+
+  const topProducts = useMemo(() => {
+    const ranking = getProductSalesRanking(saleItems, products, "this_month");
+    return getTopProductsByRevenue(ranking, 5).map((item) => ({
+      name: item.productName,
+      total: item.revenue,
+    }));
+  }, [saleItems, products]);
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
       <h1 className="text-3xl font-bold tracking-tight">{t("business.overviewTitle")}</h1>
@@ -45,43 +69,61 @@ export function BusinessOverview() {
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {isLoading ? (
           <>
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
-            <StatSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
           </>
         ) : (
           <>
-            <Stat title={t("business.revenue")} value={fmt(stats.revenue)} />
-            <Stat title={t("business.purchases")} value={fmt(stats.expense)} />
-            <Stat title={t("business.grossMargin")} value={fmt(stats.margin)} />
-            <Stat title={t("business.lowStockItems")} value={String(stats.lowStock)} />
+            <StatCard title={t("business.revenue")} value={fmt(stats.revenue)} />
+            <StatCard title={t("business.purchases")} value={fmt(stats.expense)} />
+            <StatCard title={t("business.grossMargin")} value={fmt(stats.margin)} />
+            <StatCard title={t("business.lowStockItems")} value={String(stats.lowStock)} />
           </>
         )}
       </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">{t("business.revenueVsPurchases")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("business.chartLast6Months")}</p>
+          <div className="mt-4">
+            {isLoading ? (
+              <div className="h-[200px] animate-pulse rounded-lg bg-muted/50" />
+            ) : (
+              <BusinessRevenuePurchasesChart
+                data={chartMonths.map((m) => ({
+                  label: m.label,
+                  revenue: m.revenue,
+                  purchases: m.purchases,
+                }))}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">{t("business.topProductsThisMonth")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("business.thisMonth")}</p>
+          <div className="mt-4">
+            {isLoading ? (
+              <div className="h-[200px] animate-pulse rounded-lg bg-muted/50" />
+            ) : (
+              <HorizontalBarChart
+                data={topProducts}
+                emptyLabel={t("business.noSalesInPeriod")}
+              />
+            )}
+          </div>
+        </section>
+      </div>
+
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Quick href="/dashboard/business/products" label={t("business.manageProducts")} />
         <Quick href="/dashboard/business/sales" label={t("business.newSale")} />
       </div>
     </div>
-  );
-}
-
-function Stat({ title, value }: { title: string; value: string }) {
-  return (
-    <article className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
-      <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
-    </article>
-  );
-}
-
-function StatSkeleton() {
-  return (
-    <article className="rounded-xl border border-border bg-card p-4">
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="mt-3 h-8 w-32" />
-    </article>
   );
 }
 

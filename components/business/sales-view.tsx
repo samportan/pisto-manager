@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, Plus, Search, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/business/page-header";
+import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { ResponsiveList } from "@/components/business/responsive-list";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -27,10 +28,12 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
+import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useSaleItems } from "@/hooks/useSaleItems";
 import { useSales } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
+import { buildSalesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { SaleWithMeta } from "@/lib/db/sales";
 
 function SaleDetailBody({ saleId }: { saleId: string }) {
@@ -84,9 +87,11 @@ export function SalesView() {
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
   const { sales, deleteSale, isLoading, isDeleting } = useSales();
   const { contacts } = useContacts();
+  const { activeOrgId } = useActiveOrganization();
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [detailId, setDetailId] = React.useState<string | null>(null);
+  const [exporting, setExporting] = React.useState(false);
 
   const contactName = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -175,10 +180,29 @@ export function SalesView() {
           title={t("business.salesTitle")}
           description={t("business.salesSubtitleStock")}
           actions={
-            <Button type="button" size="sm" className="gap-1.5" render={<Link href="/dashboard/business/sales/new" />}>
+            <div className="flex flex-wrap gap-2">
+              <ExportExcelButton
+                label={t("business.downloadExcel")}
+                isExporting={exporting}
+                onExport={async () => {
+                  if (!activeOrgId) return;
+                  setExporting(true);
+                  try {
+                    const sheets = await buildSalesWorkbook(activeOrgId, sales, contacts, {
+                      sales: t("business.sheetSales"),
+                      saleLines: t("business.sheetSaleLines"),
+                    });
+                    downloadWorkbook(sheets, todayFilename("ventas"));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+              />
+              <Button type="button" size="sm" className="gap-1.5" render={<Link href="/dashboard/business/sales/new" />}>
                 <Plus className="size-4" aria-hidden />
                 {t("business.newSaleDoc")}
-            </Button>
+              </Button>
+            </div>
           }
         />
 

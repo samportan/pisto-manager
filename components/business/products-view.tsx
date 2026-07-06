@@ -6,6 +6,7 @@ import { Plus, Pencil, Search, Trash2 } from "lucide-react";
 
 import { AddProductSheet } from "@/components/business/add-product-sheet";
 import { EditProductSheet } from "@/components/business/edit-product-sheet";
+import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { PageHeader } from "@/components/business/page-header";
 import { ResponsiveList } from "@/components/business/responsive-list";
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +16,10 @@ import { Input } from "@/components/ui/input";
 import { useProducts } from "@/hooks/useProducts";
 import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
+import { buildProductsWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { Product } from "@/lib/db/products";
 
-export function ProductsView() {
+export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
@@ -27,6 +29,7 @@ export function ProductsView() {
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [exporting, setExporting] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<Product>[]>(
     () => [
@@ -119,15 +122,33 @@ export function ProductsView() {
 
   return (
     <div className="flex-1">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${embedded ? "pb-8" : "py-8"}`}>
         <PageHeader
           title={t("business.productsTitle")}
           description={t("business.productsSubtitle")}
           actions={
-            <Button type="button" size="sm" className="gap-1.5" onClick={() => setSheetOpen(true)}>
-              <Plus className="size-4" aria-hidden />
-              {t("business.newProduct")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <ExportExcelButton
+                label={t("business.downloadExcel")}
+                isExporting={exporting}
+                onExport={async () => {
+                  setExporting(true);
+                  try {
+                    const sheets = await buildProductsWorkbook(
+                      products,
+                      t("business.sheetProducts")
+                    );
+                    downloadWorkbook(sheets, todayFilename("productos"));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+              />
+              <Button type="button" size="sm" className="gap-1.5" onClick={() => setSheetOpen(true)}>
+                <Plus className="size-4" aria-hidden />
+                {t("business.newProduct")}
+              </Button>
+            </div>
           }
         />
 

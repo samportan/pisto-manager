@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ActiveOrgProvider } from "@/components/active-org-provider";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { WorkspaceGate } from "@/components/workspace-gate";
 import { createClient } from "@/lib/server";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
@@ -26,7 +27,9 @@ export default async function DashboardLayout({
 
   return (
     <ActiveOrgProvider>
-      <DashboardShell email={email}>{children}</DashboardShell>
+      <DashboardShell email={email}>
+        <WorkspaceGate>{children}</WorkspaceGate>
+      </DashboardShell>
     </ActiveOrgProvider>
   );
 }

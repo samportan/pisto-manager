@@ -2,6 +2,34 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { logSupabaseConnectionOnce } from '@/lib/supabase-connection-log'
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from '@/lib/supabase-config'
+import { getWorkspaceModeFromRequest } from '@/lib/workspace'
+
+function applyWorkspaceRedirect(request: NextRequest, response: NextResponse): NextResponse {
+  const pathname = request.nextUrl.pathname
+  const mode = getWorkspaceModeFromRequest(request.cookies)
+
+  if (pathname === '/dashboard' && mode === 'business') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard/business'
+    const redirect = NextResponse.redirect(url, 307)
+    response.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value)
+    })
+    return redirect
+  }
+
+  if (pathname.startsWith('/dashboard/business') && mode === 'personal') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    const redirect = NextResponse.redirect(url, 307)
+    response.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value)
+    })
+    return redirect
+  }
+
+  return response
+}
 
 export async function updateSession(request: NextRequest) {
   if (!isSupabaseConfigured()) {
@@ -77,9 +105,14 @@ export async function updateSession(request: NextRequest) {
     (pathname.startsWith("/login") || pathname.startsWith("/signup"))
   ) {
     const url = request.nextUrl.clone()
-    url.pathname = "/dashboard"
+    const mode = getWorkspaceModeFromRequest(request.cookies)
+    url.pathname = mode === "business" ? "/dashboard/business" : "/dashboard"
     url.search = ""
-    return NextResponse.redirect(url)
+    const redirect = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      redirect.cookies.set(cookie.name, cookie.value)
+    })
+    return redirect
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
@@ -95,5 +128,5 @@ export async function updateSession(request: NextRequest) {
   // If this is not done, you may be causing the browser and server to go out
   // of sync and terminate the user's session prematurely!
 
-  return supabaseResponse
+  return applyWorkspaceRedirect(request, supabaseResponse)
 }
