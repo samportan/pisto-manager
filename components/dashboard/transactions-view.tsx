@@ -3,8 +3,10 @@
 import * as React from "react";
 import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
+import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
 import { TransactionListRow } from "@/components/transaction-list-row";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccounts } from "@/hooks/useAccounts";
@@ -17,9 +19,20 @@ import {
   transactionsToRows,
 } from "@/lib/transaction-display";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
+import type { Transaction } from "@/lib/db/transactions";
+
+function searchTokensFromQuery(q: string) {
+  return q
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+}
 
 export function TransactionsView() {
   const [txOpen, setTxOpen] = React.useState(false);
+  const [editTx, setEditTx] = React.useState<Transaction | null>(null);
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [cursor, setCursor] = React.useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
@@ -28,10 +41,18 @@ export function TransactionsView() {
 
   const { accounts, isLoading: accountsLoading } = useAccounts();
   const { categories, isLoading: categoriesLoading } = useCategories();
-  const { transactions, isLoading: txLoading } = useTransactions();
+  const {
+    transactions,
+    isLoading: txLoading,
+    deleteTransaction,
+    isDeleting,
+  } = useTransactions();
 
   const live = isSupabaseConfigured();
   const loadingLists = live && (accountsLoading || categoriesLoading || txLoading);
+
+  const searchTokens = React.useMemo(() => searchTokensFromQuery(search), [search]);
+  const searchActive = searchTokens.length > 0;
 
   const monthTransactions = React.useMemo(() => {
     return transactions.filter((tx) =>
@@ -39,21 +60,34 @@ export function TransactionsView() {
     );
   }, [transactions, cursor.year, cursor.month]);
 
+  const baseTransactions = React.useMemo(() => {
+    if (searchActive) return transactions;
+    return monthTransactions;
+  }, [searchActive, transactions, monthTransactions]);
+
+  const txById = React.useMemo(() => {
+    const m = new Map<string, Transaction>();
+    for (const t of transactions) m.set(t.id, t);
+    return m;
+  }, [transactions]);
+
+  React.useEffect(() => {
+    if (editTx && !transactions.some((t) => t.id === editTx.id)) {
+      setEditTx(null);
+    }
+  }, [transactions, editTx]);
+
   const rows = React.useMemo(() => {
     if (!live) return [];
-    return transactionsToRows(monthTransactions, accounts, categories);
-  }, [live, monthTransactions, accounts, categories]);
+    return transactionsToRows(baseTransactions, accounts, categories);
+  }, [live, baseTransactions, accounts, categories]);
 
   const filteredRows = React.useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.title.toLowerCase().includes(q) ||
-        r.categoryLabel.toLowerCase().includes(q) ||
-        r.accountLabel.toLowerCase().includes(q)
+    if (!searchActive) return rows;
+    return rows.filter((r) =>
+      searchTokens.every((tok) => r.searchText.includes(tok))
     );
-  }, [rows, search]);
+  }, [rows, searchActive, searchTokens]);
 
   const groups = React.useMemo(
     () => groupRowsByDay(filteredRows),
@@ -76,6 +110,11 @@ export function TransactionsView() {
 
   const monthLabel = formatMonthYear(cursor.year, cursor.month);
 
+  function openEdit(rowId: string) {
+    const tx = txById.get(rowId);
+    if (tx) setEditTx(tx);
+  }
+
   return (
     <div className="flex-1">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -85,7 +124,7 @@ export function TransactionsView() {
               Transactions
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              View all your income and spending transactions.
+              Browse by month, or search across all dates. Edit or remove any row.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -126,26 +165,41 @@ export function TransactionsView() {
           </div>
         </header>
 
-        <div className="relative mb-6">
+        <div className="relative mb-2">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
             type="search"
-            placeholder="Search transactions…"
+            placeholder="Search title, account, category, amount, type, date…"
             className="h-10 pl-9 border-border rounded-lg"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             disabled={!live}
             aria-describedby="search-hint"
           />
-          <p id="search-hint" className="mt-1 text-xs text-muted-foreground">
+        </div>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <p id="search-hint" className="text-xs text-muted-foreground">
             {live
-              ? "Filter by title, category, or account."
+              ? searchActive
+                ? "Searching all dates. Use several words to narrow (all must match)."
+                : "Showing this calendar month only. Type to search your full history."
               : "Configure Supabase to search your transactions."}
           </p>
+          {live && searchActive ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSearch("")}>
+              Clear search
+            </Button>
+          ) : null}
         </div>
+
+        {searchActive && live ? (
+          <p className="mb-4 text-sm text-muted-foreground">
+            All dates · {filteredRows.length} result{filteredRows.length === 1 ? "" : "s"}
+          </p>
+        ) : null}
 
         {!live ? (
           <p className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-12 text-center text-sm text-muted-foreground">
@@ -169,9 +223,9 @@ export function TransactionsView() {
           </div>
         ) : groups.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-12 text-center text-sm text-muted-foreground">
-            {monthTransactions.length === 0
-              ? "No transactions this month."
-              : "No matches for your search."}
+            {searchActive
+              ? "No matches. Try fewer words or different spelling."
+              : "No transactions this month."}
           </p>
         ) : (
           <div className="space-y-6">
@@ -182,7 +236,13 @@ export function TransactionsView() {
                 </h2>
                 <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
                   {group.items.map((row) => (
-                    <TransactionListRow key={row.id} row={row} showAvatar />
+                    <TransactionListRow
+                      key={row.id}
+                      row={row}
+                      showAvatar
+                      onEdit={() => openEdit(row.id)}
+                      onDelete={() => setDeleteId(row.id)}
+                    />
                   ))}
                 </ul>
               </section>
@@ -192,6 +252,27 @@ export function TransactionsView() {
       </div>
 
       <AddTransactionSheet open={txOpen} onOpenChange={setTxOpen} />
+
+      <EditTransactionSheet
+        transaction={editTx}
+        open={editTx != null}
+        onOpenChange={(o) => {
+          if (!o) setEditTx(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteId != null}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+        title="Delete transaction?"
+        description="Removed permanently. Net worth and budgets update on next refresh."
+        confirmLabel="Delete"
+        variant="destructive"
+        isPending={isDeleting}
+        onConfirm={async () => {
+          if (deleteId) await deleteTransaction(deleteId);
+        }}
+      />
     </div>
   );
 }

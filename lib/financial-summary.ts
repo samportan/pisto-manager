@@ -1,4 +1,8 @@
 import { createClient } from "@/lib/client";
+import type { Account } from "@/lib/db/accounts";
+import type { Transaction } from "@/lib/db/transactions";
+import { getAccountsByUserId } from "@/lib/db/accounts";
+import { getTransactionsByUserId } from "@/lib/db/transactions";
 
 export const financialSummaryKeys = {
   all: (userId: string) => ["financial-summary", userId] as const,
@@ -76,32 +80,83 @@ async function syncSessionForEdgeCall(
 export async function fetchUserFinancialSummary(): Promise<UserFinancialSummary> {
   const supabase = createClient();
 
-  const { error: userError } = await supabase.auth.getUser();
-  if (userError) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
     throw new Error("Not authenticated");
   }
 
-  await syncSessionForEdgeCall(supabase);
+  try {
+    await syncSessionForEdgeCall(supabase);
 
-  let { data: raw, error: fnError } = await supabase.functions.invoke(
-    "user-financial-summary",
-    { body: {} }
-  );
+    let { data: raw, error: fnError } = await supabase.functions.invoke(
+      "user-financial-summary",
+      { body: {} }
+    );
 
-  if (fnError && isFunctionsHttp401(fnError)) {
-    await supabase.auth.refreshSession();
-    const retry = await supabase.functions.invoke("user-financial-summary", {
-      body: {},
-    });
-    raw = retry.data;
-    fnError = retry.error;
+    if (fnError && isFunctionsHttp401(fnError)) {
+      await supabase.auth.refreshSession();
+      const retry = await supabase.functions.invoke("user-financial-summary", {
+        body: {},
+      });
+      raw = retry.data;
+      fnError = retry.error;
+    }
+
+    if (!fnError) {
+      return parseUserFinancialSummary(raw);
+    }
+  } catch {
+    // fall through to client-side computation
   }
 
-  if (fnError) {
-    const msg =
-      fnError instanceof Error ? fnError.message : "Request failed";
-    throw new Error(msg);
+  return computeSummaryClientSide(user.id);
+}
+
+export function computeSummaryFromData(
+  accounts: Account[],
+  transactions: Transaction[]
+): UserFinancialSummary {
+  const active = accounts.filter((a) => a.is_active);
+  let totalNetWorth = 0;
+  let creditAndLoans = 0;
+
+  for (const a of active) {
+    const bal = Number(a.balance);
+    if (a.type === "credit") {
+      creditAndLoans += Math.abs(bal);
+      totalNetWorth -= Math.abs(bal);
+    } else {
+      totalNetWorth += bal;
+    }
   }
 
-  return parseUserFinancialSummary(raw);
+  const now = new Date();
+  let totalSpentThisMonth = 0;
+  for (const tx of transactions) {
+    if (tx.type !== "expense") continue;
+    const d = new Date(tx.date);
+    if (
+      d.getUTCFullYear() === now.getUTCFullYear() &&
+      d.getUTCMonth() === now.getUTCMonth()
+    ) {
+      totalSpentThisMonth += Number(tx.amount);
+    }
+  }
+
+  return {
+    totalNetWorth,
+    totalBalanceExcludingCreditAndLoans: totalNetWorth - creditAndLoans,
+    totalSpentThisMonth,
+  };
+}
+
+async function computeSummaryClientSide(userId: string): Promise<UserFinancialSummary> {
+  const [accounts, transactions] = await Promise.all([
+    getAccountsByUserId(userId),
+    getTransactionsByUserId(userId),
+  ]);
+  return computeSummaryFromData(accounts ?? [], transactions ?? []);
 }

@@ -9,29 +9,64 @@ import {
   Wallet,
 } from "lucide-react";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
+import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
+import {
+  CategoryBreakdownChart,
+  IncomeExpenseBarChart,
+} from "@/components/dashboard/charts/overview-charts";
 import { TransactionListRow } from "@/components/transaction-list-row";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useFinancialSummary } from "@/hooks/useFinancialSummary";
+import { useT } from "@/hooks/useTranslations";
 import { useTransactions } from "@/hooks/useTransactions";
+import {
+  getExpensesByCategory,
+  getLastNMonthsTotals,
+  getMonthTotals,
+  percentChange,
+} from "@/lib/analytics/personal";
+import { formatMoney } from "@/lib/format-money";
 import { transactionsToRows } from "@/lib/transaction-display";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
+import type { Transaction } from "@/lib/db/transactions";
 
-function formatMoney(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
+function ChangeBadge({ value }: { value: number | null }) {
+  const { t } = useT();
+  if (value === null) return null;
+  const up = value > 0;
+  const down = value < 0;
+  return (
+    <span
+      className={`text-xs font-medium tabular-nums ${
+        up ? "text-destructive" : down ? "text-emerald-600" : "text-muted-foreground"
+      }`}
+    >
+      {up ? "↑" : down ? "↓" : "—"} {Math.abs(value).toFixed(0)}% {t("dashboard.vsLastMonth")}
+    </span>
+  );
 }
 
 export function OverviewDashboard() {
+  const { t, intlLocale, currency } = useT();
+  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+
   const [txOpen, setTxOpen] = React.useState(false);
+  const [editTx, setEditTx] = React.useState<Transaction | null>(null);
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
   const { accounts, isLoading: accountsLoading } = useAccounts();
   const { categories, isLoading: categoriesLoading } = useCategories();
-  const { transactions, isLoading: txLoading } = useTransactions();
+  const {
+    transactions,
+    isLoading: txLoading,
+    deleteTransaction,
+    isDeleting,
+    deleteError,
+  } = useTransactions();
   const {
     summary,
     isLoading: summaryLoading,
@@ -47,10 +82,46 @@ export function OverviewDashboard() {
     ? summary.totalNetWorth - summary.totalBalanceExcludingCreditAndLoans
     : null;
 
+  const now = new Date();
+  const thisMonth = getMonthTotals(transactions, now.getUTCFullYear(), now.getUTCMonth());
+  const prevDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const lastMonth = getMonthTotals(
+    transactions,
+    prevDate.getUTCFullYear(),
+    prevDate.getUTCMonth()
+  );
+  const spentChange = percentChange(thisMonth.expense, lastMonth.expense);
+
+  const chartMonths = React.useMemo(
+    () => getLastNMonthsTotals(transactions, 6),
+    [transactions]
+  );
+
+  const categoryMap = React.useMemo(
+    () => new Map(categories.map((c) => [c.id, c.name])),
+    [categories]
+  );
+
+  const categoryBreakdown = React.useMemo(
+    () =>
+      getExpensesByCategory(
+        transactions,
+        categoryMap,
+        now.getUTCFullYear(),
+        now.getUTCMonth()
+      ),
+    [transactions, categoryMap, now]
+  );
+
   const recentRows = React.useMemo(() => {
     if (!live) return [];
     return transactionsToRows(transactions, accounts, categories).slice(0, 10);
   }, [live, transactions, accounts, categories]);
+
+  const txById = React.useMemo(
+    () => new Map(transactions.map((tx) => [tx.id, tx])),
+    [transactions]
+  );
 
   return (
     <div className="relative flex-1">
@@ -58,12 +129,10 @@ export function OverviewDashboard() {
         <section className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Overview
+              {t("dashboard.title")}
             </h1>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              {live
-                ? "Snapshot of your money and latest activity."
-                : "Snapshot of your money — connect Supabase for live data."}
+              {live ? t("dashboard.subtitleLive") : t("dashboard.subtitleDemo")}
             </p>
           </div>
           <Button
@@ -73,26 +142,26 @@ export function OverviewDashboard() {
             onClick={() => setTxOpen(true)}
           >
             <Plus className="size-4" aria-hidden />
-            Add transaction
+            {t("dashboard.addTransaction")}
           </Button>
         </section>
 
         <section className="mb-6 rounded-xl border border-border bg-card p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Net worth
+            {t("dashboard.netWorth")}
           </p>
           {live && loadingMetrics ? (
             <Skeleton className="mt-2 h-12 w-48 max-w-full sm:h-14 sm:w-56" />
           ) : live && summary ? (
             <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl text-primary">
-              {formatMoney(summary.totalNetWorth)}
+              {fmt(summary.totalNetWorth)}
             </p>
           ) : (
             <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl text-muted-foreground">
               —
             </p>
           )}
-          <div className="mt-4 h-1 w-16 rounded-full bg-accent"></div>
+          <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
           {summaryError && live ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <p className="text-sm text-destructive" role="alert">
@@ -104,7 +173,7 @@ export function OverviewDashboard() {
                 size="sm"
                 onClick={() => void refetchSummary()}
               >
-                Retry
+                {t("common.retry")}
               </Button>
             </div>
           ) : null}
@@ -118,23 +187,21 @@ export function OverviewDashboard() {
               </span>
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Balance
+              {t("dashboard.balance")}
             </p>
             {live && loadingMetrics ? (
               <Skeleton className="mt-2 h-8 w-28" />
             ) : live && summary ? (
               <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
-                {formatMoney(summary.totalBalanceExcludingCreditAndLoans)}
+                {fmt(summary.totalBalanceExcludingCreditAndLoans)}
               </p>
             ) : (
-              <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">
-                —
-              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">—</p>
             )}
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              Excluding credit cards &amp; loans
+              {t("dashboard.balanceHint")}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/30"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/30" />
           </article>
 
           <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-accent/50 transition-colors">
@@ -144,23 +211,21 @@ export function OverviewDashboard() {
               </span>
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Credit &amp; loans
+              {t("dashboard.creditAndLoans")}
             </p>
             {live && loadingMetrics ? (
               <Skeleton className="mt-2 h-8 w-28" />
             ) : live && summary && creditAndLoansBalance !== null ? (
               <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">
-                {formatMoney(creditAndLoansBalance)}
+                {fmt(creditAndLoansBalance)}
               </p>
             ) : (
-              <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">
-                —
-              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">—</p>
             )}
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              Balances on credit &amp; loan accounts
+              {t("dashboard.creditAndLoansHint")}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent" />
           </article>
 
           <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-primary/50 transition-colors">
@@ -170,41 +235,66 @@ export function OverviewDashboard() {
               </span>
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Spent this month
+              {t("dashboard.spentThisMonth")}
             </p>
             {live && loadingMetrics ? (
               <Skeleton className="mt-2 h-8 w-28" />
             ) : live && summary ? (
-              <p className="mt-2 text-2xl font-bold tabular-nums text-destructive">
-                {formatMoney(summary.totalSpentThisMonth)}
-              </p>
+              <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                <p className="text-2xl font-bold tabular-nums text-destructive">
+                  {fmt(summary.totalSpentThisMonth)}
+                </p>
+                <ChangeBadge value={spentChange} />
+              </div>
             ) : (
-              <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">
-                —
-              </p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">—</p>
             )}
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              Expenses (UTC month)
+              {t("dashboard.spentThisMonthHint")}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/40"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/40" />
           </article>
         </section>
+
+        {live && !loadingLists && transactions.length > 0 ? (
+          <section className="mb-10 grid gap-4 lg:grid-cols-2">
+            <article className="rounded-xl border border-border bg-card p-5">
+              <h2 className="text-base font-semibold">{t("dashboard.incomeVsExpense")}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.last6Months")}</p>
+              <div className="mt-4">
+                <IncomeExpenseBarChart data={chartMonths} />
+              </div>
+            </article>
+            <article className="rounded-xl border border-border bg-card p-5">
+              <h2 className="text-base font-semibold">{t("dashboard.byCategory")}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.thisMonth")}</p>
+              <div className="mt-4">
+                <CategoryBreakdownChart data={categoryBreakdown} />
+              </div>
+            </article>
+          </section>
+        ) : null}
 
         <section>
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold tracking-tight">
-              Recent transactions
+              {t("dashboard.recentTransactions")}
             </h2>
             <Link
               href="/dashboard/transactions"
               className="text-sm font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              View all
+              {t("dashboard.viewAll")}
             </Link>
           </div>
+          {deleteError ? (
+            <p className="mb-3 text-sm text-destructive" role="alert">
+              {deleteError.message}
+            </p>
+          ) : null}
           {!live ? (
             <p className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-8 text-center text-sm text-muted-foreground">
-              Configure Supabase to load your transactions here.
+              {t("dashboard.configureSupabase")}
             </p>
           ) : loadingLists ? (
             <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
@@ -220,12 +310,20 @@ export function OverviewDashboard() {
             </ul>
           ) : recentRows.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border bg-muted/20 px-5 py-8 text-center text-sm text-muted-foreground">
-              No transactions yet. Add one with the button above.
+              {t("dashboard.noTransactions")}
             </p>
           ) : (
             <ul className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
               {recentRows.map((row) => (
-                <TransactionListRow key={row.id} row={row} />
+                <TransactionListRow
+                  key={row.id}
+                  row={row}
+                  onEdit={() => {
+                    const tx = txById.get(row.id);
+                    if (tx) setEditTx(tx);
+                  }}
+                  onDelete={() => setDeleteId(row.id)}
+                />
               ))}
             </ul>
           )}
@@ -236,13 +334,31 @@ export function OverviewDashboard() {
         size="icon-lg"
         className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 size-12 rounded-full md:bottom-8 md:right-8 bg-accent hover:bg-accent/90 text-accent-foreground shadow-md hover:shadow-lg transition-all"
         type="button"
-        aria-label="Add transaction"
+        aria-label={t("dashboard.addTransaction")}
         onClick={() => setTxOpen(true)}
       >
         <Plus className="size-5" aria-hidden />
       </Button>
 
       <AddTransactionSheet open={txOpen} onOpenChange={setTxOpen} />
+      <EditTransactionSheet
+        transaction={editTx}
+        open={editTx != null}
+        onOpenChange={(o) => !o && setEditTx(null)}
+      />
+      <ConfirmDialog
+        open={deleteId != null}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+        title={t("transactions.deleteTitle")}
+        description={t("transactions.deleteDescription")}
+        confirmLabel={t("common.delete")}
+        variant="destructive"
+        isPending={isDeleting}
+        onConfirm={async () => {
+          if (deleteId) await deleteTransaction(deleteId);
+          setDeleteId(null);
+        }}
+      />
     </div>
   );
 }

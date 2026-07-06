@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { SiApple } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/hooks/useTranslations";
 import { createClient } from "@/lib/client";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
-
-
 
 type LoginFormProps = {
   nextPath?: string;
@@ -18,12 +16,39 @@ type LoginFormProps = {
 
 export function LoginForm({ nextPath }: LoginFormProps) {
   const router = useRouter();
+  const { t } = useT();
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  async function handleForgotPassword() {
+    setError(null);
+    setInfo(null);
+    const emailInput = document.getElementById("email") as HTMLInputElement | null;
+    const email = emailInput?.value?.trim();
+    if (!email) {
+      setError(t("auth.forgotNeedEmail"));
+      return;
+    }
+    if (!isSupabaseConfigured()) {
+      setError(t("auth.supabaseNotConfigured"));
+      return;
+    }
+    const supabase = createClient();
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/dashboard/settings`,
+    });
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    setInfo(t("auth.forgotSent"));
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     const form = e.currentTarget;
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const password = (form.elements.namedItem("password") as HTMLInputElement)
@@ -33,6 +58,10 @@ export function LoginForm({ nextPath }: LoginFormProps) {
 
     if (!isSupabaseConfigured()) {
       setPending(false);
+      if (process.env.NODE_ENV === "production") {
+        setError(t("auth.supabaseNotConfigured"));
+        return;
+      }
       const safeNext =
         nextPath &&
         nextPath.startsWith("/") &&
@@ -75,13 +104,18 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           {error}
         </p>
       ) : null}
+      {info ? (
+        <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          {info}
+        </p>
+      ) : null}
 
       <div className="space-y-2">
         <label
           htmlFor="email"
           className="block text-xs font-semibold text-muted-foreground"
         >
-          Email
+          {t("auth.email")}
         </label>
         <Input
           id="email"
@@ -89,7 +123,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
           type="email"
           autoComplete="email"
           required
-          placeholder="you@example.com"
+          placeholder={t("auth.emailPlaceholder")}
         />
       </div>
       <div className="space-y-2">
@@ -98,13 +132,14 @@ export function LoginForm({ nextPath }: LoginFormProps) {
             htmlFor="password"
             className="block text-xs font-semibold text-muted-foreground"
           >
-            Password
+            {t("auth.password")}
           </Label>
           <button
             type="button"
             className="text-xs font-medium text-primary underline-offset-4 hover:underline transition-colors"
+            onClick={() => void handleForgotPassword()}
           >
-            Forgot?
+            {t("auth.forgot")}
           </button>
         </div>
         <Input
@@ -122,34 +157,16 @@ export function LoginForm({ nextPath }: LoginFormProps) {
         disabled={pending}
         className="mt-2 w-full"
       >
-        {pending ? "Signing in…" : "Sign in"}
-      </Button>
-
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-border/50"></div>
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-card px-2 text-muted-foreground">or</span>
-        </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full justify-center gap-2"
-      >
-        <SiApple className="size-4 shrink-0" aria-hidden />
-        Continue with Apple
+        {pending ? t("auth.signingIn") : t("auth.signIn")}
       </Button>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        No account?{" "}
+        {t("auth.noAccount")}{" "}
         <Link
           href="/signup"
           className="font-semibold text-primary hover:text-primary/80 transition-colors"
         >
-          Create one
+          {t("auth.createOne")}
         </Link>
       </p>
     </form>

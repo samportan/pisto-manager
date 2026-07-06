@@ -11,6 +11,8 @@ export type TransactionRow = {
   dateKey: string;
   sortTime: number;
   signedAmount: number;
+  /** Lowercase haystack for search (title, meta, amount, type, date). */
+  searchText: string;
 };
 
 function accountMap(accounts: Account[]): Map<string, Account> {
@@ -61,19 +63,37 @@ export function transactionToRow(
 
   const d = new Date(tx.date);
   const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dateLabel = d.toLocaleDateString(undefined, { dateStyle: "medium" });
 
   const signedAmount =
     tx.type === "income" ? tx.amount : -tx.amount;
+
+  const amountStr = String(tx.amount);
+  const typeLabel = tx.type;
+  const searchText = [
+    title,
+    categoryLabel,
+    accountLabel,
+    dateLabel,
+    dateKey,
+    typeLabel,
+    amountStr,
+    desc ?? "",
+    d.toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }),
+  ]
+    .join(" ")
+    .toLowerCase();
 
   return {
     id: tx.id,
     title,
     categoryLabel,
     accountLabel,
-    dateLabel: d.toLocaleDateString(undefined, { dateStyle: "medium" }),
+    dateLabel,
     dateKey,
     sortTime: d.getTime(),
     signedAmount,
+    searchText,
   };
 }
 

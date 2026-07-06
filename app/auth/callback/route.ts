@@ -14,7 +14,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login`);
   }
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const rawNext = searchParams.get("next") ?? "/dashboard";
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
 
   if (code) {
     const cookieStore = await cookies();

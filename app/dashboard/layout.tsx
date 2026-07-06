@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ActiveOrgProvider } from "@/components/active-org-provider";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { createClient } from "@/lib/server";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
@@ -23,5 +24,9 @@ export default async function DashboardLayout({
     email = user.email ?? null;
   }
 
-  return <DashboardShell email={email}>{children}</DashboardShell>;
+  return (
+    <ActiveOrgProvider>
+      <DashboardShell email={email}>{children}</DashboardShell>
+    </ActiveOrgProvider>
+  );
 }

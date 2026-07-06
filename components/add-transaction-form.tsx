@@ -33,6 +33,8 @@ type AddTransactionFormProps = {
   className?: string;
   accounts: Account[];
   categories: Category[];
+  /** When set, form fields initialize from these values (edit mode). */
+  defaultValues?: NewTransactionFormValues | null;
   submitLabel?: string;
   submitDisabled?: boolean;
   onSubmit?: (values: NewTransactionFormValues) => void | Promise<void>;
@@ -45,6 +47,7 @@ export function AddTransactionForm({
   className,
   accounts,
   categories,
+  defaultValues = null,
   submitLabel = "Save",
   submitDisabled = false,
   onSubmit,
@@ -67,10 +70,22 @@ export function AddTransactionForm({
   );
 
   React.useEffect(() => {
+    if (!defaultValues) return;
+    setType(defaultValues.type);
+    setAmount(String(defaultValues.amount));
+    setDateLocal(localDateTimeInputValue(new Date(defaultValues.date)));
+    setAccountId(defaultValues.account_id);
+    setDestinationId(defaultValues.destination_account_id ?? "");
+    setCategoryId(defaultValues.category_id ?? "");
+    setDescription(defaultValues.description ?? "");
+  }, [defaultValues]);
+
+  React.useEffect(() => {
+    if (defaultValues) return;
     if (!accountId && activeAccounts.length > 0) {
       setAccountId(activeAccounts[0].id);
     }
-  }, [accountId, activeAccounts]);
+  }, [accountId, activeAccounts, defaultValues]);
 
   const categoryTypeFilter: "income" | "expense" | null =
     type === "transfer" ? null : type;

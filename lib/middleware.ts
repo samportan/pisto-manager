@@ -5,6 +5,19 @@ import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from '@/lib/
 
 export async function updateSession(request: NextRequest) {
   if (!isSupabaseConfigured()) {
+    if (process.env.NODE_ENV === 'production') {
+      const pathname = request.nextUrl.pathname
+      const isPublic =
+        pathname.startsWith('/login') ||
+        pathname.startsWith('/signup') ||
+        pathname.startsWith('/auth')
+      if (!isPublic) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        url.searchParams.set('error', 'config')
+        return NextResponse.redirect(url)
+      }
+    }
     return NextResponse.next({ request })
   }
 

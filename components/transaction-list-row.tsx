@@ -1,18 +1,26 @@
 "use client";
 
+import { Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { TransactionRow } from "@/lib/transaction-display";
 import { cn } from "@/lib/utils";
 
 type TransactionListRowProps = {
   row: TransactionRow;
   showAvatar?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
 export function TransactionListRow({
   row,
   showAvatar = false,
+  onEdit,
+  onDelete,
 }: TransactionListRowProps) {
+  const hasActions = onEdit != null || onDelete != null;
+
   return (
     <li
       className={cn(
@@ -53,6 +61,34 @@ export function TransactionListRow({
           </div>
         </div>
       )}
+      {hasActions ? (
+        <div className="flex shrink-0 items-center gap-0.5">
+          {onEdit ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label={`Edit ${row.title}`}
+              onClick={onEdit}
+            >
+              <Pencil className="size-4" />
+            </Button>
+          ) : null}
+          {onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground hover:text-destructive"
+              aria-label={`Delete ${row.title}`}
+              onClick={onDelete}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <p
         className={cn(
           "shrink-0 text-sm font-bold tabular-nums",

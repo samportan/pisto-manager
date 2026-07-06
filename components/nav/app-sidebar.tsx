@@ -3,9 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
+import { TeamSwitcher } from "@/components/nav/team-switcher";
 import { useSignOut } from "@/components/sign-out-button";
-import { isNavActive, mainNavItems } from "@/components/nav/nav-config";
+import {
+  businessNavItems,
+  isNavActive,
+  personalNavItems,
+} from "@/components/nav/nav-config";
 import { cn } from "@/lib/utils";
+import { useActiveOrganization } from "@/hooks/useActiveOrganization";
+import { useT } from "@/hooks/useTranslations";
 import {
   Sidebar,
   SidebarContent,
@@ -22,50 +29,41 @@ import {
 
 export function AppSidebar({ email }: { email: string | null }) {
   const pathname = usePathname();
+  const { t } = useT();
   const { signOut, pending } = useSignOut();
+  const { activeOrg } = useActiveOrganization();
   const shortEmail = email?.includes("@") ? email.split("@")[0] : email;
+  const navItems = activeOrg.kind === "business" ? businessNavItems : personalNavItems;
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              render={<Link href="/dashboard" />}
-              isActive={pathname === "/dashboard"}
-              className="h-auto py-2"
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary/80 text-sidebar-primary-foreground font-bold">
-                P
-              </span>
-              <span className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-bold">Pisto</span>
-                <span className="truncate text-xs text-sidebar-foreground/60">
-                  Finance
-                </span>
-              </span>
-            </SidebarMenuButton>
+            <TeamSwitcher />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>
+            {activeOrg.kind === "business" ? t("nav.business") : t("nav.personal")}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => {
+              {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isNavActive(pathname, item.href);
+                const title = t(item.titleKey);
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SidebarMenuButton
                       render={<Link href={item.href} />}
                       isActive={active}
-                      tooltip={item.title}
+                      tooltip={title}
                     >
                       <Icon aria-hidden />
-                      <span>{item.title}</span>
+                      <span>{title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -80,10 +78,10 @@ export function AppSidebar({ email }: { email: string | null }) {
             <SidebarMenuButton
               render={<Link href="/dashboard/settings" />}
               isActive={pathname.startsWith("/dashboard/settings")}
-              tooltip="Settings"
+              tooltip={t("nav.settings")}
             >
               <Settings aria-hidden />
-              <span>Settings</span>
+              <span>{t("nav.settings")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -105,12 +103,12 @@ export function AppSidebar({ email }: { email: string | null }) {
           <SidebarMenuItem>
             <SidebarMenuButton
               type="button"
-              tooltip="Sign out"
+              tooltip={t("auth.signOut")}
               disabled={pending}
               onClick={signOut}
             >
               <LogOut aria-hidden />
-              <span>{pending ? "Signing out…" : "Sign out"}</span>
+              <span>{pending ? t("auth.signingOut") : t("auth.signOut")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

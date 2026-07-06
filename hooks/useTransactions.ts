@@ -6,10 +6,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/client";
 import {
   createTransaction,
+  deleteTransaction,
   getTransactionsByUserId,
+  updateTransaction,
   type NewTransaction,
   type NewTransactionFormValues,
   type Transaction,
+  type TransactionUpdate,
 } from "@/lib/db/transactions";
 import { financialSummaryKeys } from "@/lib/financial-summary";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
@@ -26,8 +29,17 @@ export type UseTransactionsResult = {
   error: Error | null;
   refetch: () => Promise<unknown>;
   createTransaction: (values: NewTransactionFormValues) => Promise<Transaction | null>;
+  updateTransaction: (
+    id: string,
+    values: NewTransactionFormValues
+  ) => Promise<Transaction | null>;
+  deleteTransaction: (id: string) => Promise<void>;
   isCreating: boolean;
+  isUpdating: boolean;
+  isDeleting: boolean;
   createError: Error | null;
+  updateError: Error | null;
+  deleteError: Error | null;
 };
 
 export function useTransactions(): UseTransactionsResult {
@@ -77,16 +89,34 @@ export function useTransactions(): UseTransactionsResult {
     enabled,
   });
 
+  const invalidateTx = () => {
+    if (userId) {
+      void queryClient.invalidateQueries({ queryKey: transactionKeys.all(userId) });
+      void queryClient.invalidateQueries({
+        queryKey: financialSummaryKeys.all(userId),
+      });
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: (payload: NewTransaction) => createTransaction(payload),
-    onSuccess: () => {
-      if (userId) {
-        void queryClient.invalidateQueries({ queryKey: transactionKeys.all(userId) });
-        void queryClient.invalidateQueries({
-          queryKey: financialSummaryKeys.all(userId),
-        });
-      }
+    onSuccess: () => invalidateTx(),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: TransactionUpdate }) => {
+      if (!userId) throw new Error("You must be signed in to update a transaction.");
+      return updateTransaction(id, userId, patch);
     },
+    onSuccess: () => invalidateTx(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => {
+      if (!userId) throw new Error("You must be signed in to delete a transaction.");
+      return deleteTransaction(id, userId);
+    },
+    onSuccess: () => invalidateTx(),
   });
 
   const create = React.useCallback(
@@ -109,6 +139,29 @@ export function useTransactions(): UseTransactionsResult {
     [userId, createMutation]
   );
 
+  const update = React.useCallback(
+    async (id: string, values: NewTransactionFormValues) => {
+      const patch: TransactionUpdate = {
+        account_id: values.account_id,
+        category_id: values.category_id,
+        type: values.type,
+        amount: values.amount,
+        date: values.date,
+        destination_account_id: values.destination_account_id,
+        description: values.description,
+      };
+      return updateMutation.mutateAsync({ id, patch });
+    },
+    [updateMutation]
+  );
+
+  const remove = React.useCallback(
+    async (id: string) => {
+      await deleteMutation.mutateAsync(id);
+    },
+    [deleteMutation]
+  );
+
   const isLoading =
     !sessionReady || (enabled && query.isLoading);
 
@@ -120,8 +173,14 @@ export function useTransactions(): UseTransactionsResult {
     error: query.error as Error | null,
     refetch: query.refetch,
     createTransaction: create,
+    updateTransaction: update,
+    deleteTransaction: remove,
     isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     createError: createMutation.error as Error | null,
+    updateError: updateMutation.error as Error | null,
+    deleteError: deleteMutation.error as Error | null,
   };
 }
 
