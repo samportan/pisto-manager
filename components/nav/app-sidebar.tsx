@@ -12,6 +12,7 @@ import {
 } from "@/components/nav/nav-config";
 import { cn } from "@/lib/utils";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
+import { usePrefetchBusinessRoute } from "@/hooks/usePrefetchBusinessRoute";
 import { useT } from "@/hooks/useTranslations";
 import {
   Sidebar,
@@ -32,6 +33,7 @@ export function AppSidebar({ email }: { email: string | null }) {
   const { t } = useT();
   const { signOut, pending } = useSignOut();
   const { activeOrg } = useActiveOrganization();
+  const prefetchRoute = usePrefetchBusinessRoute();
   const shortEmail = email?.includes("@") ? email.split("@")[0] : email;
   const navItems = activeOrg.kind === "business" ? businessNavItems : personalNavItems;
 
@@ -61,6 +63,8 @@ export function AppSidebar({ email }: { email: string | null }) {
                       render={<Link href={item.href} />}
                       isActive={active}
                       tooltip={title}
+                      onMouseEnter={() => prefetchRoute(item.href)}
+                      onFocus={() => prefetchRoute(item.href)}
                     >
                       <Icon aria-hidden />
                       <span>{title}</span>

@@ -15,30 +15,41 @@ import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
 import { productKeys } from "@/hooks/useProducts";
 
-const salesKeys = {
+export const salesKeys = {
   all: (orgId: string, opts?: ListSalesOptions) =>
     ["sales", orgId, opts?.includeDeleted ? "with-deleted" : "active"] as const,
   paginated: (orgId: string, page: number, pageSize: number, filters?: SalesListFilters) =>
     ["sales", orgId, "paginated", page, pageSize, filters] as const,
 };
 
+function useSalesOrgId() {
+  const { activeOrg, activeOrgId } = useActiveOrganization();
+  const orgId = activeOrg.kind === "business" ? activeOrgId : null;
+  return orgId;
+}
+
+function useInvalidateSales() {
+  const queryClient = useQueryClient();
+  const orgId = useSalesOrgId();
+
+  return () => {
+    if (!orgId) return;
+    void queryClient.invalidateQueries({ queryKey: ["sales", orgId] });
+  };
+}
+
 export function useSales(opts?: ListSalesOptions) {
   const queryClient = useQueryClient();
   const { userId, sessionReady } = useAuthUserId();
-  const { activeOrg, activeOrgId } = useActiveOrganization();
   const includeDeleted = opts?.includeDeleted ?? false;
-  const orgId = activeOrg.kind === "business" ? activeOrgId : null;
+  const orgId = useSalesOrgId();
+  const invalidate = useInvalidateSales();
 
   const query = useQuery({
     queryKey: orgId ? salesKeys.all(orgId, opts) : ["sales", "idle"],
     queryFn: () => getSalesByOrgId(orgId!, { includeDeleted }),
     enabled: sessionReady && !!userId && !!orgId,
   });
-
-  const invalidate = () => {
-    if (!orgId) return;
-    void queryClient.invalidateQueries({ queryKey: ["sales", orgId] });
-  };
 
   const createMutation = useMutation({
     mutationFn: async (payload: {
@@ -72,10 +83,33 @@ export function useSales(opts?: ListSalesOptions) {
 
   return {
     sales: query.data ?? [],
-    isLoading: !sessionReady || query.isLoading,
+    isLoading: query.isPending && !query.data,
+    isFetching: query.isFetching,
     createSaleWithItems: createMutation.mutateAsync,
     deleteSale: deleteMutation.mutateAsync,
     isCreating: createMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+  };
+}
+
+export function useDeleteSale() {
+  const queryClient = useQueryClient();
+  const orgId = useSalesOrgId();
+  const invalidate = useInvalidateSales();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => softDeleteSale(id),
+    onSuccess: async () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["sale-items"] });
+      if (orgId) {
+        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
+      }
+    },
+  });
+
+  return {
+    deleteSale: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
   };
 }
@@ -86,8 +120,7 @@ export function useSalesPaginated(
   filters?: SalesListFilters
 ) {
   const { userId, sessionReady } = useAuthUserId();
-  const { activeOrg, activeOrgId } = useActiveOrganization();
-  const orgId = activeOrg.kind === "business" ? activeOrgId : null;
+  const orgId = useSalesOrgId();
 
   const query = useQuery({
     queryKey: orgId
@@ -100,7 +133,9 @@ export function useSalesPaginated(
 
   return {
     result: query.data,
-    isLoading: !sessionReady || query.isLoading,
+    isLoading: query.isPending && !query.data,
+    isPageLoading: query.isFetching && (query.isPlaceholderData || !query.data),
+    isRefreshing: query.isFetching && !!query.data && !query.isPlaceholderData,
     isFetching: query.isFetching,
   };
 }

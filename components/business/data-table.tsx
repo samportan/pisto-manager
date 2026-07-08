@@ -41,6 +41,8 @@ type DataTableProps<T> = {
   columns: ColumnDef<T, unknown>[];
   globalFilter?: string;
   isLoading?: boolean;
+  isPageLoading?: boolean;
+  isRefreshing?: boolean;
   emptyLabel?: string;
   className?: string;
   manualPagination?: boolean;
@@ -51,11 +53,35 @@ type DataTableProps<T> = {
   totalRows?: number;
 };
 
+function TableBodySkeleton({
+  columns,
+  rowCount,
+}: {
+  columns: number;
+  rowCount: number;
+}) {
+  return (
+    <>
+      {Array.from({ length: rowCount }, (_, i) => (
+        <TableRow key={i} className="hover:bg-transparent">
+          {Array.from({ length: columns }, (__, j) => (
+            <TableCell key={j}>
+              <Skeleton className="h-8 w-full" />
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
 export function DataTable<T>({
   data,
   columns,
   globalFilter = "",
   isLoading,
+  isPageLoading,
+  isRefreshing,
   emptyLabel = "No rows.",
   className,
   manualPagination = false,
@@ -107,6 +133,7 @@ export function DataTable<T>({
     ? (pageCount ?? 1)
     : table.getPageCount();
   const rowTotal = manualPagination ? (totalRows ?? 0) : table.getFilteredRowModel().rows.length;
+  const paginationDisabled = Boolean(isPageLoading);
 
   if (isLoading) {
     return (
@@ -114,11 +141,12 @@ export function DataTable<T>({
         <Skeleton className="h-9 w-full" />
         <Skeleton className="h-9 w-full" />
         <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
       </div>
     );
   }
 
-  if (data.length === 0 && !manualPagination) {
+  if (data.length === 0 && !manualPagination && !isPageLoading) {
     return (
       <p
         className={cn(
@@ -130,6 +158,10 @@ export function DataTable<T>({
       </p>
     );
   }
+
+  const skeletonRowCount = manualPagination
+    ? pagination.pageSize
+    : Math.min(pagination.pageSize, 5);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -148,8 +180,15 @@ export function DataTable<T>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
+          <TableBody
+            className={cn(
+              isRefreshing && !isPageLoading && "opacity-60 transition-opacity",
+              isRefreshing && !isPageLoading && "pointer-events-none"
+            )}
+          >
+            {isPageLoading ? (
+              <TableBodySkeleton columns={columns.length} rowCount={skeletonRowCount} />
+            ) : rows.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
@@ -191,6 +230,7 @@ export function DataTable<T>({
               table.setPageSize(size);
               table.setPageIndex(0);
             }}
+            disabled={paginationDisabled}
             className="h-8 w-auto text-xs"
             aria-label={t("business.rowsPerPage")}
           >
@@ -204,7 +244,7 @@ export function DataTable<T>({
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  disabled={currentPage <= 0}
+                  disabled={paginationDisabled || currentPage <= 0}
                   onClick={() => table.previousPage()}
                   aria-label={t("business.prevPage")}
                 />
@@ -224,6 +264,7 @@ export function DataTable<T>({
                   <PaginationItem key={page}>
                     <PaginationLink
                       isActive={page === currentPage}
+                      disabled={paginationDisabled}
                       onClick={() => table.setPageIndex(page)}
                     >
                       {page + 1}
@@ -233,7 +274,7 @@ export function DataTable<T>({
               })}
               <PaginationItem>
                 <PaginationNext
-                  disabled={currentPage >= totalPages - 1}
+                  disabled={paginationDisabled || currentPage >= totalPages - 1}
                   onClick={() => table.nextPage()}
                   aria-label={t("business.nextPage")}
                 />

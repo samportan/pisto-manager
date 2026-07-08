@@ -343,7 +343,10 @@
     "errorQtyInvalid": "Invalid quantity for the product unit of measure.",
     "filterLowStock": "Low stock only",
     "filterActive": "Active only",
-    "filterAllStatus": "All statuses"
+    "filterAllStatus": "All statuses",
+    "filters": "Filters",
+    "clearFilters": "Clear filters",
+    "activeFilters": "Active filters"
   },
   "common": {
     "save": "Save",

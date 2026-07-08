@@ -3,17 +3,16 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
-import { Eye, Plus, Search, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Eye, Plus, Trash2 } from "lucide-react";
 
 import { DataTable } from "@/components/business/data-table";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
+import { ListFilterBar, type FilterChip } from "@/components/business/list-filter-bar";
 import { PageHeader } from "@/components/business/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/select-native";
 import {
   Sheet,
   SheetContent,
@@ -33,11 +32,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useSaleItems } from "@/hooks/useSaleItems";
-import { useSales, useSalesPaginated } from "@/hooks/useSales";
+import { salesKeys, useDeleteSale, useSalesPaginated } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
 import { buildSalesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
-import type { PaymentMethod, SaleWithMeta } from "@/lib/db/sales";
+import { getSalesByOrgId, type PaymentMethod, type SaleWithMeta } from "@/lib/db/sales";
 
 function PaymentBadge({ method }: { method: PaymentMethod }) {
   const { t } = useT();
@@ -143,7 +142,8 @@ type Props = { embedded?: boolean };
 export function SalesView({ embedded = false }: Props) {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
-  const { sales, deleteSale, isDeleting } = useSales();
+  const queryClient = useQueryClient();
+  const { deleteSale, isDeleting } = useDeleteSale();
   const { contacts } = useContacts();
   const { activeOrgId } = useActiveOrganization();
 
@@ -167,8 +167,12 @@ export function SalesView({ embedded = false }: Props) {
     [search, dateFrom, dateTo, paymentFilter]
   );
 
-  const { result, isLoading } = useSalesPaginated(pageIndex + 1, pageSize, filters);
-  const pageData = result?.data ?? [];
+  const { result, isLoading, isPageLoading, isRefreshing } = useSalesPaginated(
+    pageIndex + 1,
+    pageSize,
+    filters
+  );
+  const pageData = isPageLoading ? [] : (result?.data ?? []);
   const totalRows = result?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
 
@@ -177,6 +181,55 @@ export function SalesView({ embedded = false }: Props) {
     for (const c of contacts) m.set(c.id, c.name);
     return m;
   }, [contacts]);
+
+  const paymentLabel = (method: PaymentMethod | "all") => {
+    if (method === "all") return t("business.paymentAll");
+    if (method === "cash") return t("business.paymentCash");
+    if (method === "card") return t("business.paymentCard");
+    return t("business.paymentTransfer");
+  };
+
+  const filterChips = React.useMemo<FilterChip[]>(() => {
+    const chips: FilterChip[] = [];
+    if (dateFrom) {
+      chips.push({
+        id: "dateFrom",
+        label: `${t("business.filterDateFrom")}: ${dateFrom}`,
+        onRemove: () => {
+          setDateFrom("");
+          setPageIndex(0);
+        },
+      });
+    }
+    if (dateTo) {
+      chips.push({
+        id: "dateTo",
+        label: `${t("business.filterDateTo")}: ${dateTo}`,
+        onRemove: () => {
+          setDateTo("");
+          setPageIndex(0);
+        },
+      });
+    }
+    if (paymentFilter !== "all") {
+      chips.push({
+        id: "payment",
+        label: paymentLabel(paymentFilter),
+        onRemove: () => {
+          setPaymentFilter("all");
+          setPageIndex(0);
+        },
+      });
+    }
+    return chips;
+  }, [dateFrom, dateTo, paymentFilter, t]);
+
+  const clearFilters = React.useCallback(() => {
+    setDateFrom("");
+    setDateTo("");
+    setPaymentFilter("all");
+    setPageIndex(0);
+  }, []);
 
   const columns = React.useMemo<ColumnDef<SaleWithMeta>[]>(
     () => [
@@ -274,6 +327,10 @@ export function SalesView({ embedded = false }: Props) {
                   if (!activeOrgId) return;
                   setExporting(true);
                   try {
+                    const sales = await queryClient.fetchQuery({
+                      queryKey: salesKeys.all(activeOrgId),
+                      queryFn: () => getSalesByOrgId(activeOrgId),
+                    });
                     const sheets = await buildSalesWorkbook(activeOrgId, sales, contacts, {
                       sales: t("business.sheetSales"),
                       saleLines: t("business.sheetSaleLines"),
@@ -297,76 +354,65 @@ export function SalesView({ embedded = false }: Props) {
           }
         />
 
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative sm:col-span-2">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              placeholder={t("business.searchSales")}
-              className="h-10 pl-9"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+        <ListFilterBar
+          fields={[
+            {
+              type: "search",
+              value: search,
+              placeholder: t("business.searchSales"),
+              onChange: (value) => {
+                setSearch(value);
                 setPageIndex(0);
-              }}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="sale-from" className="text-xs text-muted-foreground">
-              {t("business.filterDateFrom")}
-            </Label>
-            <Input
-              id="sale-from"
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
+              },
+            },
+            {
+              type: "date",
+              id: "sale-from",
+              label: t("business.filterDateFrom"),
+              value: dateFrom,
+              onChange: (value) => {
+                setDateFrom(value);
                 setPageIndex(0);
-              }}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="sale-to" className="text-xs text-muted-foreground">
-              {t("business.filterDateTo")}
-            </Label>
-            <Input
-              id="sale-to"
-              type="date"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
+              },
+            },
+            {
+              type: "date",
+              id: "sale-to",
+              label: t("business.filterDateTo"),
+              value: dateTo,
+              onChange: (value) => {
+                setDateTo(value);
                 setPageIndex(0);
-              }}
-            />
-          </div>
-          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
-            <Label htmlFor="sale-payment-filter" className="text-xs text-muted-foreground">
-              {t("business.paymentMethod")}
-            </Label>
-            <NativeSelect
-              id="sale-payment-filter"
-              value={paymentFilter}
-              onChange={(e) => {
-                setPaymentFilter(e.target.value as PaymentMethod | "all");
+              },
+            },
+            {
+              type: "select",
+              id: "sale-payment-filter",
+              label: t("business.paymentMethod"),
+              value: paymentFilter,
+              onChange: (value) => {
+                setPaymentFilter(value as PaymentMethod | "all");
                 setPageIndex(0);
-              }}
-              className="h-10 w-full"
-            >
-              <option value="all">{t("business.paymentAll")}</option>
-              <option value="cash">{t("business.paymentCash")}</option>
-              <option value="card">{t("business.paymentCard")}</option>
-              <option value="transfer">{t("business.paymentTransfer")}</option>
-            </NativeSelect>
-          </div>
-        </div>
+              },
+              options: [
+                { value: "all", label: t("business.paymentAll") },
+                { value: "cash", label: t("business.paymentCash") },
+                { value: "card", label: t("business.paymentCard") },
+                { value: "transfer", label: t("business.paymentTransfer") },
+              ],
+            },
+          ]}
+          chips={filterChips}
+          activeFilterCount={filterChips.length}
+          onClear={filterChips.length > 0 ? clearFilters : undefined}
+        />
 
         <DataTable
           data={pageData}
           columns={columns}
           isLoading={isLoading}
+          isPageLoading={isPageLoading}
+          isRefreshing={isRefreshing}
           emptyLabel={t("business.noSales")}
           manualPagination
           pageCount={pageCount}

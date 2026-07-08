@@ -343,7 +343,10 @@
     "errorQtyInvalid": "Cantidad inválida para la unidad de medida del producto.",
     "filterLowStock": "Solo stock bajo",
     "filterActive": "Solo activos",
-    "filterAllStatus": "Todos los estados"
+    "filterAllStatus": "Todos los estados",
+    "filters": "Filtros",
+    "clearFilters": "Limpiar filtros",
+    "activeFilters": "Filtros activos"
   },
   "common": {
     "save": "Guardar",

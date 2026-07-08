@@ -57,7 +57,8 @@ export function useProducts(opts?: ListProductsOptions) {
 
   return {
     products: query.data ?? [],
-    isLoading: !sessionReady || query.isLoading,
+    isLoading: query.isPending && !query.data,
+    isFetching: query.isFetching,
     createProduct: createMutation.mutateAsync,
     updateProduct: updateMutation.mutateAsync,
     deleteProduct: deleteMutation.mutateAsync,

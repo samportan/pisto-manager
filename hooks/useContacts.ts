@@ -12,7 +12,7 @@ import {
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
 
-const contactKeys = {
+export const contactKeys = {
   all: (orgId: string, opts?: ListContactsOptions) =>
     ["contacts", orgId, opts?.includeDeleted ? "with-deleted" : "active"] as const,
 };
@@ -57,7 +57,8 @@ export function useContacts(opts?: ListContactsOptions) {
 
   return {
     contacts: query.data ?? [],
-    isLoading: !sessionReady || query.isLoading,
+    isLoading: query.isPending && !query.data,
+    isFetching: query.isFetching,
     createContact: createMutation.mutateAsync,
     updateContact: updateMutation.mutateAsync,
     deleteContact: deleteMutation.mutateAsync,
@@ -66,4 +67,4 @@ export function useContacts(opts?: ListContactsOptions) {
     isDeleting: deleteMutation.isPending,
   };
 }
-
+

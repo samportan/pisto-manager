@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ActiveOrgProvider } from "@/components/active-org-provider";
+import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { WorkspaceGate } from "@/components/workspace-gate";
 import { createClient } from "@/lib/server";
@@ -26,10 +27,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <ActiveOrgProvider>
-      <DashboardShell email={email}>
-        <WorkspaceGate>{children}</WorkspaceGate>
-      </DashboardShell>
-    </ActiveOrgProvider>
+    <AuthSessionProvider>
+      <ActiveOrgProvider>
+        <DashboardShell email={email}>
+          <WorkspaceGate>{children}</WorkspaceGate>
+        </DashboardShell>
+      </ActiveOrgProvider>
+    </AuthSessionProvider>
   );
 }
