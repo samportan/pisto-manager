@@ -5,12 +5,15 @@ import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Eye, Plus, Search, Trash2 } from "lucide-react";
 
-import { PageHeader } from "@/components/business/page-header";
+import { DataTable } from "@/components/business/data-table";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
-import { ResponsiveList } from "@/components/business/responsive-list";
+import { PageHeader } from "@/components/business/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/select-native";
 import {
   Sheet,
   SheetContent,
@@ -30,68 +33,144 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useSaleItems } from "@/hooks/useSaleItems";
-import { useSales } from "@/hooks/useSales";
+import { useSales, useSalesPaginated } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
 import { buildSalesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
-import type { SaleWithMeta } from "@/lib/db/sales";
+import type { PaymentMethod, SaleWithMeta } from "@/lib/db/sales";
 
-function SaleDetailBody({ saleId }: { saleId: string }) {
+function PaymentBadge({ method }: { method: PaymentMethod }) {
+  const { t } = useT();
+  const label =
+    method === "cash"
+      ? t("business.paymentCash")
+      : method === "card"
+        ? t("business.paymentCard")
+        : t("business.paymentTransfer");
+  return (
+    <Badge variant="outline" className="whitespace-nowrap text-[0.65rem]">
+      {label}
+    </Badge>
+  );
+}
+
+function SaleDetailBody({ sale }: { sale: SaleWithMeta }) {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
-  const { data: lines, isLoading } = useSaleItems(saleId);
+  const { contacts } = useContacts();
+  const { data: lines, isLoading } = useSaleItems(sale.id);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-2 p-4">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-      </div>
-    );
-  }
-  if (!lines?.length) {
-    return <p className="p-4 text-sm text-muted-foreground">{t("business.noLines")}</p>;
-  }
+  const customerName = React.useMemo(() => {
+    if (!sale.customer_id) return t("business.walkIn");
+    return contacts.find((c) => c.id === sale.customer_id)?.name ?? t("common.empty");
+  }, [contacts, sale.customer_id, t]);
+
   return (
-    <div className="overflow-x-auto px-4 pb-4">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>{t("business.product")}</TableHead>
-            <TableHead className="min-w-[5rem] text-right">{t("business.qty")}</TableHead>
-            <TableHead className="min-w-[7rem] text-right">{t("business.unit")}</TableHead>
-            <TableHead className="min-w-[7rem] text-right">{t("business.line")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {lines.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>{row.products?.name ?? row.product_id}</TableCell>
-              <TableCell className="text-right text-base tabular-nums">{row.quantity}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {fmt(Number(row.unit_price))}
-              </TableCell>
-              <TableCell className="text-right tabular-nums font-medium">
-                {fmt(Number(row.line_total))}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-4 px-4 pb-6">
+      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted-foreground">{t("business.customer")}</dt>
+          <dd className="font-medium">{customerName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">{t("business.date")}</dt>
+          <dd className="tabular-nums">
+            {new Date(sale.date).toLocaleString(intlLocale, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">{t("business.paymentMethod")}</dt>
+          <dd>
+            <PaymentBadge method={sale.payment_method} />
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">{t("business.total")}</dt>
+          <dd className="text-lg font-bold tabular-nums">{fmt(Number(sale.total))}</dd>
+        </div>
+        {sale.notes ? (
+          <div className="sm:col-span-2">
+            <dt className="text-xs text-muted-foreground">{t("business.notes")}</dt>
+            <dd className="text-muted-foreground">{sale.notes}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+        </div>
+      ) : !lines?.length ? (
+        <p className="text-sm text-muted-foreground">{t("business.noLines")}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>{t("business.product")}</TableHead>
+                <TableHead className="min-w-[5rem] text-right">{t("business.qty")}</TableHead>
+                <TableHead className="min-w-[7rem] text-right">{t("business.unit")}</TableHead>
+                <TableHead className="min-w-[7rem] text-right">{t("business.line")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lines.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>{row.products?.name ?? row.product_id}</TableCell>
+                  <TableCell className="text-right text-base tabular-nums">{row.quantity}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmt(Number(row.unit_price))}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {fmt(Number(row.line_total))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
 
-export function SalesView() {
+type Props = { embedded?: boolean };
+
+export function SalesView({ embedded = false }: Props) {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
-  const { sales, deleteSale, isLoading, isDeleting } = useSales();
+  const { sales, deleteSale, isDeleting } = useSales();
   const { contacts } = useContacts();
   const { activeOrgId } = useActiveOrganization();
+
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(10);
   const [search, setSearch] = React.useState("");
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
+  const [paymentFilter, setPaymentFilter] = React.useState<PaymentMethod | "all">("all");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [detailId, setDetailId] = React.useState<string | null>(null);
+  const [detailSale, setDetailSale] = React.useState<SaleWithMeta | null>(null);
   const [exporting, setExporting] = React.useState(false);
+
+  const filters = React.useMemo(
+    () => ({
+      search: search.trim() || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      paymentMethod: paymentFilter,
+    }),
+    [search, dateFrom, dateTo, paymentFilter]
+  );
+
+  const { result, isLoading } = useSalesPaginated(pageIndex + 1, pageSize, filters);
+  const pageData = result?.data ?? [];
+  const totalRows = result?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
 
   const contactName = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -105,7 +184,7 @@ export function SalesView() {
         accessorKey: "date",
         header: t("business.date"),
         cell: ({ row }) => (
-          <span className="tabular-nums text-muted-foreground">
+          <span className="whitespace-nowrap tabular-nums text-muted-foreground">
             {new Date(row.original.date).toLocaleString(intlLocale, {
               dateStyle: "medium",
               timeStyle: "short",
@@ -114,17 +193,26 @@ export function SalesView() {
         ),
       },
       {
-        id: "customer",
-        header: t("business.customer"),
-        accessorFn: (row) =>
-          row.customer_id ? contactName.get(row.customer_id) ?? "" : t("business.walkIn"),
-        cell: ({ row }) => (
-          <span className="font-medium">
-            {row.original.customer_id
-              ? contactName.get(row.original.customer_id) ?? t("common.empty")
-              : t("business.walkIn")}
-          </span>
-        ),
+        id: "sale",
+        header: t("business.sale"),
+        cell: ({ row }) => {
+          const s = row.original;
+          return (
+            <div className="min-w-[12rem] space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">
+                  {s.customer_id
+                    ? contactName.get(s.customer_id) ?? t("common.empty")
+                    : t("business.walkIn")}
+                </span>
+                <PaymentBadge method={s.payment_method} />
+              </div>
+              {s.items_preview ? (
+                <p className="line-clamp-2 text-xs text-muted-foreground">{s.items_preview}</p>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "line_count",
@@ -137,9 +225,7 @@ export function SalesView() {
         accessorKey: "total",
         header: t("business.total"),
         cell: ({ row }) => (
-          <span className="font-semibold tabular-nums">
-            {fmt(Number(row.original.total))}
-          </span>
+          <span className="font-semibold tabular-nums">{fmt(Number(row.original.total))}</span>
         ),
       },
       {
@@ -152,7 +238,7 @@ export function SalesView() {
               variant="ghost"
               size="icon-sm"
               aria-label={t("business.viewLines")}
-              onClick={() => setDetailId(row.original.id)}
+              onClick={() => setDetailSale(row.original)}
             >
               <Eye className="size-4" />
             </Button>
@@ -175,7 +261,7 @@ export function SalesView() {
 
   return (
     <div className="flex-1">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${embedded ? "pb-8" : "py-8"}`}>
         <PageHeader
           title={t("business.salesTitle")}
           description={t("business.salesSubtitleStock")}
@@ -198,7 +284,12 @@ export function SalesView() {
                   }
                 }}
               />
-              <Button type="button" size="sm" className="gap-1.5" render={<Link href="/dashboard/business/sales/new" />}>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                render={<Link href="/dashboard/business/sales/new" />}
+              >
                 <Plus className="size-4" aria-hidden />
                 {t("business.newSaleDoc")}
               </Button>
@@ -206,72 +297,96 @@ export function SalesView() {
           }
         />
 
-        <div className="relative mb-6">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            placeholder={t("business.searchSales")}
-            className="h-10 pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative sm:col-span-2">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              placeholder={t("business.searchSales")}
+              className="h-10 pl-9"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="sale-from" className="text-xs text-muted-foreground">
+              {t("business.filterDateFrom")}
+            </Label>
+            <Input
+              id="sale-from"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="sale-to" className="text-xs text-muted-foreground">
+              {t("business.filterDateTo")}
+            </Label>
+            <Input
+              id="sale-to"
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+            <Label htmlFor="sale-payment-filter" className="text-xs text-muted-foreground">
+              {t("business.paymentMethod")}
+            </Label>
+            <NativeSelect
+              id="sale-payment-filter"
+              value={paymentFilter}
+              onChange={(e) => {
+                setPaymentFilter(e.target.value as PaymentMethod | "all");
+                setPageIndex(0);
+              }}
+              className="h-10 w-full"
+            >
+              <option value="all">{t("business.paymentAll")}</option>
+              <option value="cash">{t("business.paymentCash")}</option>
+              <option value="card">{t("business.paymentCard")}</option>
+              <option value="transfer">{t("business.paymentTransfer")}</option>
+            </NativeSelect>
+          </div>
         </div>
 
-        <ResponsiveList
-          data={sales}
+        <DataTable
+          data={pageData}
           columns={columns}
-          globalFilter={search}
           isLoading={isLoading}
           emptyLabel={t("business.noSales")}
-          getRowKey={(s) => s.id}
-          renderCard={(s) => (
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(s.date).toLocaleString(intlLocale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </p>
-                  <p className="mt-1 font-semibold">
-                    {s.customer_id ? contactName.get(s.customer_id) ?? t("common.empty") : t("business.walkIn")}
-                  </p>
-                </div>
-                <p className="text-lg font-bold tabular-nums">{fmt(Number(s.total))}</p>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t("business.lineCount", { count: String(s.line_count) })}
-              </p>
-              <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
-                <Button type="button" variant="outline" size="sm" onClick={() => setDetailId(s.id)}>
-                  {t("business.lines")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => setDeleteId(s.id)}
-                >
-                  {t("business.remove")}
-                </Button>
-              </div>
-            </div>
-          )}
+          manualPagination
+          pageCount={pageCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          totalRows={totalRows}
+          onPaginationChange={(idx, size) => {
+            setPageIndex(idx);
+            setPageSize(size);
+          }}
         />
       </div>
 
-      <Sheet open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
+      <Sheet open={!!detailSale} onOpenChange={(o) => !o && setDetailSale(null)}>
         <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 md:max-w-lg">
           <SheetHeader className="border-b border-border px-4 py-4 text-left">
-            <SheetTitle>{t("business.saleLinesTitle")}</SheetTitle>
+            <SheetTitle>{t("business.saleDetailTitle")}</SheetTitle>
             <SheetDescription>{t("business.saleLinesDescription")}</SheetDescription>
           </SheetHeader>
-          {detailId ? <SaleDetailBody saleId={detailId} /> : null}
+          {detailSale ? <SaleDetailBody sale={detailSale} /> : null}
         </SheetContent>
       </Sheet>
 

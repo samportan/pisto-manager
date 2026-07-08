@@ -1,0 +1,204 @@
+"use client";
+
+import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+
+import { DataTable } from "@/components/business/data-table";
+import { ProductInsightsBarChart } from "@/components/business/product-insights-charts";
+import { PageHeader } from "@/components/business/page-header";
+import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useContacts } from "@/hooks/useContacts";
+import { useProductInsights } from "@/hooks/useProductInsights";
+import { useSales } from "@/hooks/useSales";
+import { useT } from "@/hooks/useTranslations";
+import {
+  getCustomerSalesRanking,
+  getPaymentMethodBreakdown,
+  getPeriodSaleKpis,
+  getSalesByDay,
+  getTopCustomersByRevenue,
+  getTopDaysByRevenue,
+  type CustomerSalesRank,
+  type InsightsPeriod,
+} from "@/lib/analytics/business-sales";
+import { formatMoney } from "@/lib/format-money";
+import type { PaymentMethod } from "@/lib/db/sales";
+
+export function SaleInsightsView() {
+  const { t, intlLocale, currency } = useT();
+  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const [period, setPeriod] = React.useState<InsightsPeriod>("this_month");
+
+  const { sales, isLoading: salesLoading } = useSales();
+  const { saleItems, isLoading: insightsLoading } = useProductInsights();
+  const { contacts } = useContacts();
+  const isLoading = salesLoading || insightsLoading;
+
+  const contactNames = React.useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of contacts) m.set(c.id, c.name);
+    return m;
+  }, [contacts]);
+
+  const periodKpis = React.useMemo(
+    () => getPeriodSaleKpis(sales, saleItems, period),
+    [sales, saleItems, period]
+  );
+  const paymentBreakdown = React.useMemo(
+    () => getPaymentMethodBreakdown(sales, period),
+    [sales, period]
+  );
+  const customerRanking = React.useMemo(
+    () => getCustomerSalesRanking(sales, contactNames, t("business.walkIn"), period),
+    [sales, contactNames, period, t]
+  );
+  const topCustomers = React.useMemo(
+    () => getTopCustomersByRevenue(customerRanking, 5),
+    [customerRanking]
+  );
+  const dailyRevenue = React.useMemo(() => getSalesByDay(sales, period), [sales, period]);
+  const topDays = React.useMemo(() => getTopDaysByRevenue(dailyRevenue, 5), [dailyRevenue]);
+
+  const periodOptions: { value: InsightsPeriod; label: string }[] = [
+    { value: "this_month", label: t("business.periodThisMonth") },
+    { value: "last_30_days", label: t("business.period30Days") },
+    { value: "all_time", label: t("business.periodAllTime") },
+  ];
+
+  function paymentLabel(method: PaymentMethod) {
+    if (method === "cash") return t("business.paymentCash");
+    if (method === "card") return t("business.paymentCard");
+    return t("business.paymentTransfer");
+  }
+
+  const columns = React.useMemo<ColumnDef<CustomerSalesRank>[]>(
+    () => [
+      {
+        accessorKey: "customerName",
+        header: t("business.customer"),
+        cell: ({ row }) => <span className="font-medium">{row.original.customerName}</span>,
+      },
+      {
+        accessorKey: "saleCount",
+        header: t("business.saleCount"),
+        cell: ({ row }) => <span className="tabular-nums">{row.original.saleCount}</span>,
+      },
+      {
+        accessorKey: "revenue",
+        header: t("business.revenue"),
+        cell: ({ row }) => (
+          <span className="tabular-nums font-medium">{fmt(row.original.revenue)}</span>
+        ),
+      },
+    ],
+    [fmt, t]
+  );
+
+  return (
+    <div className="flex-1">
+      <div className="mx-auto max-w-5xl px-4 pb-8 sm:px-6">
+        <PageHeader
+          title={t("business.saleInsightsTitle")}
+          description={t("business.saleInsightsSubtitle")}
+        />
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          {periodOptions.map((opt) => (
+            <Button
+              key={opt.value}
+              type="button"
+              size="sm"
+              variant={period === opt.value ? "secondary" : "outline"}
+              onClick={() => setPeriod(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {isLoading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard title={t("business.saleCount")} value={String(periodKpis.saleCount)} />
+              <StatCard title={t("business.revenue")} value={fmt(periodKpis.revenue)} />
+              <StatCard title={t("business.avgTicket")} value={fmt(periodKpis.avgTicket)} />
+              <StatCard
+                title={t("business.estimatedMargin")}
+                value={fmt(periodKpis.estimatedMargin)}
+              />
+            </>
+          )}
+        </div>
+
+        <h2 className="mb-3 mt-6 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("business.paymentBreakdown")}
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {paymentBreakdown.map((p) => (
+            <div
+              key={p.method}
+              className="rounded-xl border border-border bg-card p-4"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <Badge variant="outline">{paymentLabel(p.method)}</Badge>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {p.percentage.toFixed(0)}%
+                </span>
+              </div>
+              <p className="mt-2 text-lg font-bold tabular-nums">{fmt(p.revenue)}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("business.saleCount")}: {p.count}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold">{t("business.topCustomers")}</h3>
+            <div className="mt-4">
+              {isLoading ? (
+                <div className="h-[180px] animate-pulse rounded-lg bg-muted/50" />
+              ) : (
+                <ProductInsightsBarChart
+                  data={topCustomers}
+                  emptyLabel={t("business.noSalesInPeriod")}
+                />
+              )}
+            </div>
+          </section>
+          <section className="rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold">{t("business.revenueByDay")}</h3>
+            <div className="mt-4">
+              {isLoading ? (
+                <div className="h-[180px] animate-pulse rounded-lg bg-muted/50" />
+              ) : (
+                <ProductInsightsBarChart
+                  data={topDays}
+                  emptyLabel={t("business.noSalesInPeriod")}
+                />
+              )}
+            </div>
+          </section>
+        </div>
+
+        <h2 className="mb-3 mt-6 text-sm font-semibold">{t("business.customerRanking")}</h2>
+        <DataTable
+          data={customerRanking}
+          columns={columns}
+          isLoading={isLoading}
+          emptyLabel={t("business.noSalesInPeriod")}
+        />
+      </div>
+    </div>
+  );
+}

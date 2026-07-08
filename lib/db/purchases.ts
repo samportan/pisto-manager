@@ -1,4 +1,7 @@
 import { createClient } from "../client";
+import type { PaginatedResult } from "./pagination";
+
+export type { PaginatedResult };
 
 export type Purchase = {
   id: string;
@@ -17,18 +20,16 @@ export type ListPurchasesOptions = { includeDeleted?: boolean };
 
 export type PurchaseWithMeta = Purchase & { line_count: number };
 
-export async function getPurchasesByOrgId(
-  orgId: string,
-  opts?: ListPurchasesOptions
+export type PurchasesListFilters = {
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+async function attachPurchaseMeta(
+  purchases: Purchase[],
+  supabase: ReturnType<typeof createClient>
 ): Promise<PurchaseWithMeta[]> {
-  const supabase = createClient();
-  let q = supabase.from("purchases").select("*").eq("organization_id", orgId);
-  if (!opts?.includeDeleted) {
-    q = q.is("deleted_at", null);
-  }
-  const { data, error } = await q.order("date", { ascending: false });
-  if (error) throw error;
-  const purchases = (data ?? []) as Purchase[];
   if (purchases.length === 0) return [];
   const ids = purchases.map((p) => p.id);
   const { data: rows, error: cErr } = await supabase
@@ -46,6 +47,67 @@ export async function getPurchasesByOrgId(
     ...p,
     line_count: countBy.get(p.id) ?? 0,
   }));
+}
+
+export async function getPurchasesByOrgId(
+  orgId: string,
+  opts?: ListPurchasesOptions
+): Promise<PurchaseWithMeta[]> {
+  const supabase = createClient();
+  let q = supabase.from("purchases").select("*").eq("organization_id", orgId);
+  if (!opts?.includeDeleted) {
+    q = q.is("deleted_at", null);
+  }
+  const { data, error } = await q.order("date", { ascending: false });
+  if (error) throw error;
+  return attachPurchaseMeta((data ?? []) as Purchase[], supabase);
+}
+
+export async function listPurchasesPaginated(
+  orgId: string,
+  page: number,
+  pageSize: number,
+  filters?: PurchasesListFilters
+): Promise<PaginatedResult<PurchaseWithMeta>> {
+  const supabase = createClient();
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let q = supabase
+    .from("purchases")
+    .select("*", { count: "exact" })
+    .eq("organization_id", orgId)
+    .is("deleted_at", null);
+
+  if (filters?.dateFrom) {
+    q = q.gte("date", filters.dateFrom);
+  }
+  if (filters?.dateTo) {
+    q = q.lte("date", `${filters.dateTo}T23:59:59.999Z`);
+  }
+
+  const { data, error, count } = await q
+    .order("date", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+
+  let purchases = (data ?? []) as Purchase[];
+  if (filters?.search?.trim()) {
+    const term = filters.search.trim().toLowerCase();
+    purchases = purchases.filter(
+      (p) =>
+        p.notes?.toLowerCase().includes(term) ||
+        String(p.total).includes(term)
+    );
+  }
+
+  const withMeta = await attachPurchaseMeta(purchases, supabase);
+  return {
+    data: withMeta,
+    total: count ?? 0,
+    page,
+    pageSize,
+  };
 }
 
 export async function createPurchase(payload: NewPurchase): Promise<Purchase> {

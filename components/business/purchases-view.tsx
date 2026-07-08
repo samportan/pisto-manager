@@ -5,12 +5,13 @@ import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { Eye, Plus, Search, Trash2 } from "lucide-react";
 
-import { PageHeader } from "@/components/business/page-header";
+import { DataTable } from "@/components/business/data-table";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
-import { ResponsiveList } from "@/components/business/responsive-list";
+import { PageHeader } from "@/components/business/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -30,7 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
-import { usePurchases } from "@/hooks/usePurchases";
+import { usePurchases, usePurchasesPaginated } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
 import { formatMoney } from "@/lib/format-money";
 import { buildPurchasesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
@@ -85,13 +86,32 @@ function PurchaseDetailBody({ purchaseId }: { purchaseId: string }) {
 export function PurchasesView() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
-  const { purchases, deletePurchase, isLoading, isDeleting } = usePurchases();
+  const { purchases, deletePurchase, isDeleting } = usePurchases();
   const { contacts } = useContacts();
   const { activeOrgId } = useActiveOrganization();
+
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(10);
   const [search, setSearch] = React.useState("");
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [detailId, setDetailId] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState(false);
+
+  const filters = React.useMemo(
+    () => ({
+      search: search.trim() || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    }),
+    [search, dateFrom, dateTo]
+  );
+
+  const { result, isLoading } = usePurchasesPaginated(pageIndex + 1, pageSize, filters);
+  const pageData = result?.data ?? [];
+  const totalRows = result?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(totalRows / pageSize));
 
   const contactName = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -105,7 +125,7 @@ export function PurchasesView() {
         accessorKey: "date",
         header: t("business.date"),
         cell: ({ row }) => (
-          <span className="tabular-nums text-muted-foreground">
+          <span className="whitespace-nowrap tabular-nums text-muted-foreground">
             {new Date(row.original.date).toLocaleString(intlLocale, {
               dateStyle: "medium",
               timeStyle: "short",
@@ -137,9 +157,7 @@ export function PurchasesView() {
         accessorKey: "total",
         header: t("business.total"),
         cell: ({ row }) => (
-          <span className="font-semibold tabular-nums">
-            {fmt(Number(row.original.total))}
-          </span>
+          <span className="font-semibold tabular-nums">{fmt(Number(row.original.total))}</span>
         ),
       },
       {
@@ -198,7 +216,12 @@ export function PurchasesView() {
                   }
                 }}
               />
-              <Button type="button" size="sm" className="gap-1.5" render={<Link href="/dashboard/business/purchases/new" />}>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                render={<Link href="/dashboard/business/purchases/new" />}
+              >
                 <Plus className="size-4" aria-hidden />
                 {t("business.newPurchase")}
               </Button>
@@ -206,64 +229,67 @@ export function PurchasesView() {
           }
         />
 
-        <div className="relative mb-6">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            placeholder={t("business.searchPurchases")}
-            className="h-10 pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative sm:col-span-2 lg:col-span-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              placeholder={t("business.searchPurchases")}
+              className="h-10 pl-9"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="purchase-from" className="text-xs text-muted-foreground">
+              {t("business.filterDateFrom")}
+            </Label>
+            <Input
+              id="purchase-from"
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="purchase-to" className="text-xs text-muted-foreground">
+              {t("business.filterDateTo")}
+            </Label>
+            <Input
+              id="purchase-to"
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </div>
         </div>
 
-        <ResponsiveList
-          data={purchases}
+        <DataTable
+          data={pageData}
           columns={columns}
-          globalFilter={search}
           isLoading={isLoading}
           emptyLabel={t("business.noPurchases")}
-          getRowKey={(p) => p.id}
-          renderCard={(p) => (
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(p.date).toLocaleString(intlLocale, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </p>
-                  <p className="mt-1 font-semibold">
-                    {p.supplier_id
-                      ? contactName.get(p.supplier_id) ?? t("common.empty")
-                      : t("business.noSupplier")}
-                  </p>
-                </div>
-                <p className="text-lg font-bold tabular-nums">{fmt(Number(p.total))}</p>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t("business.lineCount", { count: String(p.line_count) })}
-              </p>
-              <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
-                <Button type="button" variant="outline" size="sm" onClick={() => setDetailId(p.id)}>
-                  {t("business.lines")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => setDeleteId(p.id)}
-                >
-                  {t("business.remove")}
-                </Button>
-              </div>
-            </div>
-          )}
+          manualPagination
+          pageCount={pageCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          totalRows={totalRows}
+          onPaginationChange={(idx, size) => {
+            setPageIndex(idx);
+            setPageSize(size);
+          }}
         />
       </div>
 

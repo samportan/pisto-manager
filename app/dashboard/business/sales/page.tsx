@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { SalesView } from "@/components/business/sales-view";
+import { SalesPage } from "@/components/business/sales-page";
 
 export const metadata: Metadata = {
   title: "Sales",
   description: "Sales records",
 };
 
-export default function SalesPage() {
-  return <SalesView />;
+export default function BusinessSalesPage() {
+  return <SalesPage />;
 }

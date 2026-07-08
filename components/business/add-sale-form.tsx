@@ -8,6 +8,7 @@ import { ProductPicker } from "@/components/business/product-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput, moneyInputToNumber } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -21,9 +22,10 @@ import {
 import { useT } from "@/hooks/useTranslations";
 import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
-import type { SaleLineInput } from "@/lib/db/sales";
+import type { PaymentMethod, SaleLineInput } from "@/lib/db/sales";
 import { formatMoney } from "@/lib/format-money";
 import { multiplyMoney, sumMoney } from "@/lib/money";
+import { isDecimalUom, validateQuantity } from "@/lib/uom";
 
 export function toDatetimeLocalValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -39,6 +41,7 @@ type Props = {
     customer_id: string | null;
     date: string;
     notes: string | null;
+    payment_method: PaymentMethod;
     items: SaleLineInput[];
   }) => Promise<void>;
   onCancel: () => void;
@@ -50,10 +53,11 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
   const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
 
   const [customerId, setCustomerId] = React.useState("");
+  const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>("cash");
   const [dateLocal, setDateLocal] = React.useState(() => toDatetimeLocalValue(new Date()));
   const [notes, setNotes] = React.useState("");
   const [lines, setLines] = React.useState<Line[]>([
-    { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_price: "0" },
+    { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_price: "" },
   ]);
   const [localErr, setLocalErr] = React.useState<string | null>(null);
 
@@ -70,7 +74,9 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         const next = { ...row, ...patch };
         if (patch.product_id !== undefined && patch.product_id) {
           const pr = productById.get(patch.product_id);
-          if (pr) next.unit_price = String(pr.sale_price ?? 0);
+          if (pr) {
+            next.unit_price = pr.sale_price > 0 ? String(pr.sale_price) : "";
+          }
         }
         return next;
       })
@@ -80,7 +86,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
   function addLine() {
     setLines((prev) => [
       ...prev,
-      { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_price: "0" },
+      { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_price: "" },
     ]);
   }
 
@@ -96,7 +102,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         continue;
       }
       const q = Number(row.quantity) || 0;
-      const u = Number(row.unit_price) || 0;
+      const u = moneyInputToNumber(row.unit_price);
       totals.set(row.key, multiplyMoney(q, u));
     }
     return totals;
@@ -118,12 +124,12 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
       for (const row of lines) {
         if (!row.product_id) continue;
         const qty = Number(row.quantity) || 0;
-        const unit = Number(row.unit_price) || 0;
-        if (!Number.isInteger(qty) || qty <= 0) {
-          throw new Error(t("business.errorQtyPositive"));
-        }
+        const unit = moneyInputToNumber(row.unit_price);
         const pr = productById.get(row.product_id);
         if (!pr) throw new Error(t("business.errorPickProduct"));
+        if (!validateQuantity(qty, pr.unit_of_measure)) {
+          throw new Error(t("business.errorQtyInvalid"));
+        }
         if (Number(pr.stock) < qty) {
           throw new Error(
             t("business.errorInsufficientStock", { name: pr.name, stock: String(pr.stock) })
@@ -142,6 +148,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         customer_id: customerId || null,
         date: new Date(dateLocal).toISOString(),
         notes: notes.trim() || null,
+        payment_method: paymentMethod,
         items,
       });
     } catch (err) {
@@ -170,6 +177,20 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         </NativeSelect>
       </div>
       <div className="space-y-2">
+        <Label htmlFor="sale-payment">{t("business.paymentMethod")}</Label>
+        <NativeSelect
+          id="sale-payment"
+          value={paymentMethod}
+          onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+          className="h-11 text-base sm:h-10"
+          required
+        >
+          <option value="cash">{t("business.paymentCash")}</option>
+          <option value="card">{t("business.paymentCard")}</option>
+          <option value="transfer">{t("business.paymentTransfer")}</option>
+        </NativeSelect>
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="sale-date">{t("business.date")}</Label>
         <Input
           id="sale-date"
@@ -194,6 +215,17 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
     </div>
   );
 
+  function qtyInputProps(productId: string) {
+    const pr = productId ? productById.get(productId) : undefined;
+    const decimal = pr ? isDecimalUom(pr.unit_of_measure) : false;
+    return {
+      type: "number" as const,
+      inputMode: decimal ? ("decimal" as const) : ("numeric" as const),
+      step: decimal ? "0.01" : "1",
+      min: decimal ? "0.01" : "1",
+    };
+  }
+
   const linesContent = (
     <>
       <div className="flex justify-end">
@@ -203,70 +235,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         </Button>
       </div>
 
-      <div className="space-y-3 md:hidden">
-        {lines.map((row) => {
-          const lineTotal = lineTotals.get(row.key) ?? 0;
-          return (
-            <div key={row.key} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
-              <div className="space-y-1.5">
-                <Label className="text-muted-foreground">{t("business.product")}</Label>
-                <ProductPicker
-                  products={pickerProducts}
-                  value={row.product_id}
-                  onValueChange={(productId) => setLine(row.key, { product_id: productId })}
-                  showStock
-                  className="h-11 text-base"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-muted-foreground">{t("business.qty")}</Label>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    step="1"
-                    min="1"
-                    className="h-11 text-base tabular-nums"
-                    value={row.quantity}
-                    onChange={(e) => setLine(row.key, { quantity: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-muted-foreground">{t("business.unitPrice")}</Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    className="h-11 text-base tabular-nums"
-                    value={row.unit_price}
-                    onChange={(e) => setLine(row.key, { unit_price: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2.5">
-                <span className="text-sm font-medium text-muted-foreground">{t("business.lineTotal")}</span>
-                <span className="text-lg font-bold tabular-nums">{fmt(lineTotal)}</span>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  disabled={lines.length <= 1}
-                  onClick={() => removeLine(row.key)}
-                >
-                  <Trash2 className="size-4" />
-                  {t("business.removeLine")}
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded-xl border border-border md:block">
+      <div className="overflow-x-auto rounded-xl border border-border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -280,6 +249,8 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
           <TableBody>
             {lines.map((row) => {
               const lineTotal = lineTotals.get(row.key) ?? 0;
+              const pr = row.product_id ? productById.get(row.product_id) : undefined;
+              const qtyProps = qtyInputProps(row.product_id);
               return (
                 <TableRow key={row.key}>
                   <TableCell>
@@ -292,25 +263,25 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
                     />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      step="1"
-                      min="1"
-                      className="ml-auto h-10 w-24 text-right text-base tabular-nums"
-                      value={row.quantity}
-                      onChange={(e) => setLine(row.key, { quantity: e.target.value })}
-                    />
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Input
+                        {...qtyProps}
+                        className="ml-auto h-10 w-24 text-right text-base tabular-nums"
+                        value={row.quantity}
+                        onChange={(e) => setLine(row.key, { quantity: e.target.value })}
+                      />
+                      {pr ? (
+                        <span className="text-[0.65rem] text-muted-foreground">
+                          {t(`business.uom.${pr.unit_of_measure}`)}
+                        </span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      step="0.01"
-                      min="0"
-                      className="ml-auto h-10 w-32 text-right text-base tabular-nums"
+                    <MoneyInput
+                      className="ml-auto h-10 w-32 text-right text-base"
                       value={row.unit_price}
-                      onChange={(e) => setLine(row.key, { unit_price: e.target.value })}
+                      onChange={(v) => setLine(row.key, { unit_price: v })}
                     />
                   </TableCell>
                   <TableCell className="text-right text-base font-semibold tabular-nums">

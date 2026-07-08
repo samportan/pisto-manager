@@ -7,7 +7,7 @@ import { Download } from "lucide-react";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { PageHeader } from "@/components/business/page-header";
 import { ProductInsightsBarChart } from "@/components/business/product-insights-charts";
-import { ResponsiveList } from "@/components/business/responsive-list";
+import { DataTable } from "@/components/business/data-table";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -254,43 +254,11 @@ export function ProductInsightsView() {
         </div>
 
         <h2 className="mb-3 mt-6 text-sm font-semibold">{t("business.performanceTable")}</h2>
-        <ResponsiveList
+        <DataTable
           data={ranking}
           columns={columns}
-          globalFilter=""
           isLoading={isLoading}
           emptyLabel={t("business.noSalesInPeriod")}
-          getRowKey={(row) => row.productId}
-          renderCard={(row) => (
-            <div className="p-4">
-              <p className="font-semibold">{row.productName}</p>
-              <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <dt className="text-xs text-muted-foreground">{t("business.unitsSold")}</dt>
-                  <dd className="tabular-nums">{row.unitsSold}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">{t("business.revenue")}</dt>
-                  <dd className="tabular-nums">{fmt(row.revenue)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">{t("business.estimatedMargin")}</dt>
-                  <dd className="tabular-nums">{fmt(row.estimatedMargin)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">{t("business.stock")}</dt>
-                  <dd className="flex items-center gap-2 tabular-nums">
-                    {row.stock}
-                    {row.lowStock ? (
-                      <Badge variant="destructive" className="text-[0.65rem]">
-                        {t("business.low")}
-                      </Badge>
-                    ) : null}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          )}
         />
       </div>
     </div>

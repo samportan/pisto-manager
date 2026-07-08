@@ -4,9 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createSaleWithItems,
   getSalesByOrgId,
+  listSalesPaginated,
   softDeleteSale,
   type ListSalesOptions,
+  type PaymentMethod,
   type SaleLineInput,
+  type SalesListFilters,
 } from "@/lib/db/sales";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
@@ -15,6 +18,8 @@ import { productKeys } from "@/hooks/useProducts";
 const salesKeys = {
   all: (orgId: string, opts?: ListSalesOptions) =>
     ["sales", orgId, opts?.includeDeleted ? "with-deleted" : "active"] as const,
+  paginated: (orgId: string, page: number, pageSize: number, filters?: SalesListFilters) =>
+    ["sales", orgId, "paginated", page, pageSize, filters] as const,
 };
 
 export function useSales(opts?: ListSalesOptions) {
@@ -32,9 +37,7 @@ export function useSales(opts?: ListSalesOptions) {
 
   const invalidate = () => {
     if (!orgId) return;
-    void queryClient.invalidateQueries({
-      queryKey: ["sales", orgId],
-    });
+    void queryClient.invalidateQueries({ queryKey: ["sales", orgId] });
   };
 
   const createMutation = useMutation({
@@ -42,6 +45,7 @@ export function useSales(opts?: ListSalesOptions) {
       customer_id: string | null;
       date: string;
       notes: string | null;
+      payment_method: PaymentMethod;
       items: SaleLineInput[];
     }) => {
       if (!orgId) throw new Error("Must select a business organization.");
@@ -76,3 +80,27 @@ export function useSales(opts?: ListSalesOptions) {
   };
 }
 
+export function useSalesPaginated(
+  page: number,
+  pageSize: number,
+  filters?: SalesListFilters
+) {
+  const { userId, sessionReady } = useAuthUserId();
+  const { activeOrg, activeOrgId } = useActiveOrganization();
+  const orgId = activeOrg.kind === "business" ? activeOrgId : null;
+
+  const query = useQuery({
+    queryKey: orgId
+      ? salesKeys.paginated(orgId, page, pageSize, filters)
+      : ["sales", "paginated", "idle"],
+    queryFn: () => listSalesPaginated(orgId!, page, pageSize, filters),
+    enabled: sessionReady && !!userId && !!orgId,
+    placeholderData: (prev) => prev,
+  });
+
+  return {
+    result: query.data,
+    isLoading: !sessionReady || query.isLoading,
+    isFetching: query.isFetching,
+  };
+}

@@ -7,7 +7,7 @@ import { Plus, Pencil, Search, Trash2 } from "lucide-react";
 import { AddContactSheet } from "@/components/business/add-contact-sheet";
 import { EditContactSheet } from "@/components/business/edit-contact-sheet";
 import { PageHeader } from "@/components/business/page-header";
-import { ResponsiveList } from "@/components/business/responsive-list";
+import { DataTable } from "@/components/business/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -134,50 +134,12 @@ export function ContactsView() {
           />
         </div>
 
-        <ResponsiveList
+        <DataTable
           data={contacts}
           columns={columns}
           globalFilter={search}
           isLoading={isLoading}
           emptyLabel={t("business.noContacts")}
-          getRowKey={(c) => c.id}
-          renderCard={(c) => (
-            <div className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold">{c.name}</p>
-                <Badge variant={typeVariant(c.type)}>{contactTypeLabel(c.type)}</Badge>
-              </div>
-              <dl className="mt-3 space-y-1 text-sm">
-                <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">{t("business.phone")}</dt>
-                  <dd>{c.phone ?? t("common.empty")}</dd>
-                </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-muted-foreground">{t("business.email")}</dt>
-                  <dd className="truncate text-right">{c.email ?? t("common.empty")}</dd>
-                </div>
-              </dl>
-              <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditContact(c)}
-                >
-                  {t("common.edit")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => setDeleteId(c.id)}
-                >
-                  {t("business.remove")}
-                </Button>
-              </div>
-            </div>
-          )}
         />
       </div>
 

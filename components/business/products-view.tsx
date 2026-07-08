@@ -8,7 +8,7 @@ import { AddProductSheet } from "@/components/business/add-product-sheet";
 import { EditProductSheet } from "@/components/business/edit-product-sheet";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { PageHeader } from "@/components/business/page-header";
-import { ResponsiveList } from "@/components/business/responsive-list";
+import { DataTable } from "@/components/business/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -72,7 +72,12 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
             Number(row.original.stock) <= Number(row.original.min_stock ?? 0);
           return (
             <div className="flex items-center gap-2">
-              <span className="tabular-nums font-medium">{row.original.stock}</span>
+              <span className="tabular-nums font-medium">
+                {row.original.stock}{" "}
+                <span className="text-xs font-normal text-muted-foreground">
+                  {t(`business.uom.${row.original.unit_of_measure ?? "unit"}`)}
+                </span>
+              </span>
               {low ? (
                 <Badge variant="destructive" className="text-[0.65rem]">
                   {t("business.low")}
@@ -172,80 +177,17 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
           />
         </div>
 
-        <ResponsiveList
+        <DataTable
           data={products}
           columns={columns}
           globalFilter={search}
           isLoading={isLoading}
           emptyLabel={t("business.noProducts")}
-          getRowKey={(p) => p.id}
-          renderCard={(p) => {
-            const low = (p.min_stock ?? 0) > 0 && Number(p.stock) <= Number(p.min_stock ?? 0);
-            return (
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">{p.name}</p>
-                    {p.sku ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t("business.sku")} {p.sku}
-                      </p>
-                    ) : null}
-                  </div>
-                  <Badge variant={p.is_active ? "secondary" : "outline"}>
-                    {p.is_active ? t("business.active") : t("business.inactive")}
-                  </Badge>
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">{t("business.sale")}</dt>
-                    <dd className="font-medium tabular-nums">{fmt(Number(p.sale_price))}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">{t("business.cost")}</dt>
-                    <dd className="tabular-nums text-muted-foreground">
-                      {fmt(Number(p.cost_price))}
-                    </dd>
-                  </div>
-                  <div className="col-span-2 flex items-center justify-between rounded-md bg-muted/30 px-2 py-1.5">
-                    <span className="text-xs text-muted-foreground">{t("business.stock")}</span>
-                    <span className="flex items-center gap-2 font-semibold tabular-nums">
-                      {p.stock}
-                      {low ? (
-                        <Badge variant="destructive" className="text-[0.65rem]">
-                          {t("business.low")}
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </div>
-                </dl>
-                <div className="mt-3 flex justify-end gap-2 border-t border-border pt-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditProduct(p)}
-                  >
-                    {t("common.edit")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => setDeleteId(p.id)}
-                  >
-                    {t("business.remove")}
-                  </Button>
-                </div>
-              </div>
-            );
-          }}
         />
       </div>
 
       <EditProductSheet
-        product={editProduct}
+        product={editProduct ? products.find((p) => p.id === editProduct.id) ?? editProduct : null}
         open={!!editProduct}
         onOpenChange={(o) => !o && setEditProduct(null)}
         isSubmitting={isUpdating}

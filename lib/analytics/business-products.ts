@@ -1,7 +1,8 @@
 import type { ProductInsightSaleItem } from "@/lib/db/product-insights";
 import type { Product } from "@/lib/db/products";
+import type { InsightsPeriod } from "@/lib/analytics/shared";
 
-export type InsightsPeriod = "this_month" | "last_30_days" | "all_time";
+export type { InsightsPeriod } from "@/lib/analytics/shared";
 
 export type InventoryKpis = {
   inventoryValueCost: number;
