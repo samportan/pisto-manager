@@ -53,7 +53,7 @@ export function DocumentFormPage({
   summaryTitle,
 }: DocumentFormPageProps) {
   return (
-    <div className="flex min-h-full flex-1 flex-col pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-8">
+    <div className="flex min-h-full flex-1 flex-col overflow-x-hidden pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:pb-8">
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <Link
           href={backHref}
@@ -83,7 +83,7 @@ export function DocumentFormPage({
           className="grid gap-6 md:grid-cols-[1fr_17rem] md:items-start xl:grid-cols-[1fr_19rem]"
         >
           <fieldset disabled={isSubmitting} className="contents">
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>{detailsTitle}</CardTitle>

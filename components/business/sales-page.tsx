@@ -17,7 +17,7 @@ export function SalesPage() {
   const [tab, setTab] = React.useState<SalesTab>("list");
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 overflow-x-hidden">
       <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6">
         <div className="mb-6 flex gap-2">
           <Button

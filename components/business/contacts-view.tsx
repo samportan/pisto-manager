@@ -144,18 +144,27 @@ export function ContactsView() {
           </p>
         ) : null}
 
-        <div className="relative mb-6">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            placeholder={t("business.searchContacts")}
-            className="h-10 pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="mb-6 space-y-1.5">
+          <label
+            htmlFor="contacts-search"
+            className="text-xs text-muted-foreground"
+          >
+            {t("common.search")}
+          </label>
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              id="contacts-search"
+              type="search"
+              placeholder={t("business.searchContacts")}
+              className="h-10 pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
 
         <DataTable

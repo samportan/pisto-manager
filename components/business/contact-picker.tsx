@@ -75,13 +75,30 @@ export function ContactPicker({
 
     const updatePosition = () => {
       const rect = trigger.getBoundingClientRect();
-      setPanelStyle({
-        position: "fixed",
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-        zIndex: 50,
-      });
+      const estimatedPanelHeight = 300;
+      const spaceBelow = window.innerHeight - rect.bottom - 4;
+      const spaceAbove = rect.top - 4;
+      const openUpward = spaceBelow < estimatedPanelHeight && spaceAbove > spaceBelow;
+      const left = Math.max(4, Math.min(rect.left, window.innerWidth - rect.width - 4));
+      setPanelStyle(
+        openUpward
+          ? {
+              position: "fixed",
+              bottom: window.innerHeight - rect.top + 4,
+              top: "auto",
+              left,
+              width: rect.width,
+              zIndex: 50,
+            }
+          : {
+              position: "fixed",
+              top: rect.bottom + 4,
+              bottom: "auto",
+              left,
+              width: rect.width,
+              zIndex: 50,
+            }
+      );
     };
 
     updatePosition();
