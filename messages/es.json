@@ -351,6 +351,7 @@
     "totalToCharge": "Total a cobrar",
     "cardSurcharge": "Recargo tarjeta (5%)",
     "applyCardSurcharge": "Cobrar recargo del 5% al cliente",
+    "cardSurchargeNotifyHint": "Informa este monto al cliente. Marca la casilla solo si vas a cobrarlo.",
     "surchargeNotCharged": "No cobrado",
     "collectionMode": "Tipo de cobro",
     "collectionFull": "Pago completo",

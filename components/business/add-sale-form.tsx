@@ -262,6 +262,25 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         />
       </div>
 
+      {paymentMethod === "card" ? (
+        <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 sm:col-span-2">
+          <div className="flex items-center justify-between gap-2 text-sm">
+            <span className="font-medium">{t("business.cardSurcharge")}</span>
+            <span className="tabular-nums text-base font-semibold">{fmt(cardSurchargePreview)}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">{t("business.cardSurchargeNotifyHint")}</p>
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background p-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+              checked={applyCardSurcharge}
+              onChange={(e) => setApplyCardSurcharge(e.target.checked)}
+            />
+            <span className="text-sm leading-snug">{t("business.applyCardSurcharge")}</span>
+          </label>
+        </div>
+      ) : null}
+
       <div className="space-y-3 sm:col-span-2">
         <Label>{t("business.collectionMode")}</Label>
         <div className="flex flex-wrap gap-2">
@@ -421,15 +440,9 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
             <span className="text-muted-foreground">{t("business.cardSurcharge")}</span>
             <span className="tabular-nums font-medium">{fmt(cardSurchargePreview)}</span>
           </div>
-          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3">
-            <input
-              type="checkbox"
-              className="mt-0.5 size-4 shrink-0 accent-primary"
-              checked={applyCardSurcharge}
-              onChange={(e) => setApplyCardSurcharge(e.target.checked)}
-            />
-            <span className="text-sm leading-snug">{t("business.applyCardSurcharge")}</span>
-          </label>
+          {!applyCardSurcharge ? (
+            <p className="text-xs text-muted-foreground">{t("business.surchargeNotCharged")}</p>
+          ) : null}
         </>
       ) : null}
       {collectionMode !== "full" ? (

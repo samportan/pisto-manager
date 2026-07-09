@@ -98,9 +98,14 @@ export function DocumentFormPage({
               <CardContent className="space-y-4">{linesContent}</CardContent>
             </Card>
 
-            <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-4 md:hidden">
-              <span className="text-sm font-medium text-muted-foreground">{totalLabel}</span>
-              <span className="text-xl font-bold tabular-nums">{totalFormatted}</span>
+            <div className="space-y-3 rounded-xl border border-border bg-card px-4 py-4 md:hidden">
+              {summaryExtra ? (
+                <div className="space-y-2 border-b border-border pb-3">{summaryExtra}</div>
+              ) : null}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-muted-foreground">{totalLabel}</span>
+                <span className="text-xl font-bold tabular-nums">{totalFormatted}</span>
+              </div>
             </div>
           </div>
 

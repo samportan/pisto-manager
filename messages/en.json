@@ -351,6 +351,7 @@
     "totalToCharge": "Total to charge",
     "cardSurcharge": "Card surcharge (5%)",
     "applyCardSurcharge": "Charge 5% surcharge to customer",
+    "cardSurchargeNotifyHint": "Share this amount with the customer. Check the box only if you will charge it.",
     "surchargeNotCharged": "Not charged",
     "collectionMode": "Collection type",
     "collectionFull": "Full payment",
