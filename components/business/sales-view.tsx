@@ -460,46 +460,44 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
   return (
     <div className="flex-1">
       <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${embedded ? "pb-8" : "py-8"}`}>
-        {!embedded ? (
-          <PageHeader
-            title={t("business.salesTitle")}
-            description={t("business.salesSubtitleStock")}
-            actions={
-              <div className="flex flex-wrap gap-2">
-                <ExportExcelButton
-                  label={t("business.downloadExcel")}
-                  isExporting={exporting}
-                  onExport={async () => {
-                    if (!activeOrgId) return;
-                    setExporting(true);
-                    try {
-                      const sales = await queryClient.fetchQuery({
-                        queryKey: salesKeys.all(activeOrgId),
-                        queryFn: () => getSalesByOrgId(activeOrgId),
-                      });
-                      const sheets = await buildSalesWorkbook(activeOrgId, sales, contacts, {
-                        sales: t("business.sheetSales"),
-                        saleLines: t("business.sheetSaleLines"),
-                      });
-                      downloadWorkbook(sheets, todayFilename("ventas"));
-                    } finally {
-                      setExporting(false);
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="gap-1.5"
-                  render={<Link href="/dashboard/business/sales/new" />}
-                >
-                  <Plus className="size-4" aria-hidden />
-                  {t("business.newSaleDoc")}
-                </Button>
-              </div>
-            }
-          />
-        ) : null}
+        <PageHeader
+          title={t("business.salesTitle")}
+          description={t("business.salesSubtitleStock")}
+          actions={
+            <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+              <ExportExcelButton
+                label={t("business.downloadExcel")}
+                isExporting={exporting}
+                onExport={async () => {
+                  if (!activeOrgId) return;
+                  setExporting(true);
+                  try {
+                    const sales = await queryClient.fetchQuery({
+                      queryKey: salesKeys.all(activeOrgId),
+                      queryFn: () => getSalesByOrgId(activeOrgId),
+                    });
+                    const sheets = await buildSalesWorkbook(activeOrgId, sales, contacts, {
+                      sales: t("business.sheetSales"),
+                      saleLines: t("business.sheetSaleLines"),
+                    });
+                    downloadWorkbook(sheets, todayFilename("ventas"));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                render={<Link href="/dashboard/business/sales/new" />}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t("business.newSaleDoc")}
+              </Button>
+            </div>
+          }
+        />
 
         <ListFilterBar
           fields={[
