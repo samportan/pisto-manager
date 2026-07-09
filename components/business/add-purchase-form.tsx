@@ -25,7 +25,7 @@ import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
 import type { PurchaseLineInput } from "@/lib/db/purchases";
 import { formatMoneyDisplay } from "@/lib/format-money";
-import { multiplyMoney, sumMoney } from "@/lib/money";
+import { formatMoneyInputValue, multiplyMoney, sumMoney } from "@/lib/money";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
 
 type Line = { key: string; product_id: string; quantity: string; unit_cost: string };
@@ -69,7 +69,7 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
         if (patch.product_id !== undefined && patch.product_id) {
           const pr = productById.get(patch.product_id);
           if (pr) {
-            next.unit_cost = pr.cost_price > 0 ? String(pr.cost_price) : "";
+            next.unit_cost = pr.cost_price > 0 ? formatMoneyInputValue(pr.cost_price) : "";
           }
         }
         return next;

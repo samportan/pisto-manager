@@ -27,6 +27,7 @@ import type { PaymentMethod, SaleLineInput } from "@/lib/db/sales";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import {
   applyCardSurcharge as calcCardSurcharge,
+  formatMoneyInputValue,
   multiplyMoney,
   sumMoney,
   truncMoney,
@@ -92,7 +93,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         if (patch.product_id !== undefined && patch.product_id) {
           const pr = productById.get(patch.product_id);
           if (pr) {
-            next.unit_price = pr.sale_price > 0 ? String(pr.sale_price) : "";
+            next.unit_price = pr.sale_price > 0 ? formatMoneyInputValue(pr.sale_price) : "";
           }
         }
         return next;

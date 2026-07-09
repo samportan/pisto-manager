@@ -4,13 +4,17 @@ export const CARD_SURCHARGE_RATE = 0.05;
 
 const MILLI_FACTOR = 10 ** MONEY_SCALE;
 
-export function truncMoney(value: number, scale = MONEY_SCALE): number {
-  const factor = 10 ** scale;
-  return Math.trunc(value * factor) / factor;
+export function toMilli(value: number): number {
+  const scaled = value * MILLI_FACTOR;
+  return Math.trunc(scaled + (value >= 0 ? 1e-6 : -1e-6));
 }
 
-export function toMilli(value: number): number {
-  return Math.trunc(value * MILLI_FACTOR);
+export function truncMoney(value: number, scale = MONEY_SCALE): number {
+  if (!Number.isFinite(value)) return value;
+  const milli = toMilli(value);
+  if (scale >= MONEY_SCALE) return fromMilli(milli);
+  const factor = 10 ** (MONEY_SCALE - scale);
+  return fromMilli(Math.trunc(milli / factor) * factor);
 }
 
 export function fromMilli(milli: number): number {
@@ -43,14 +47,23 @@ export function applyCardSurcharge(subtotal: number): number {
 export function parseMoneyInput(value: string): number | null {
   const trimmed = value.trim().replace(",", ".");
   if (!trimmed) return null;
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return n;
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(trimmed);
+  if (!match) return null;
+  const whole = parseInt(match[1], 10);
+  const frac = (match[2] ?? "").slice(0, MONEY_SCALE).padEnd(MONEY_SCALE, "0");
+  const milli = whole * MILLI_FACTOR + parseInt(frac, 10);
+  if (!Number.isFinite(milli) || milli < 0) return null;
+  return fromMilli(milli);
 }
 
 export function formatMoneyInputValue(value: number): string {
   if (value === 0) return "";
-  return String(value);
+  const milli = toMilli(value);
+  const whole = Math.trunc(milli / MILLI_FACTOR);
+  const frac = String(Math.abs(milli % MILLI_FACTOR))
+    .padStart(MONEY_SCALE, "0")
+    .replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : String(whole);
 }
 
 export function sanitizeMoneyInputOnChange(
