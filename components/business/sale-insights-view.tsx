@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useContacts } from "@/hooks/useContacts";
 import { useProductInsights } from "@/hooks/useProductInsights";
+import { useOrgSalePayments } from "@/hooks/useSalePayments";
 import { useSales } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import {
@@ -23,18 +24,19 @@ import {
   type CustomerSalesRank,
   type InsightsPeriod,
 } from "@/lib/analytics/business-sales";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 import type { PaymentMethod } from "@/lib/db/sales";
 
 export function SaleInsightsView() {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const [period, setPeriod] = React.useState<InsightsPeriod>("this_month");
 
   const { sales, isLoading: salesLoading } = useSales();
+  const { payments, isLoading: paymentsLoading } = useOrgSalePayments();
   const { saleItems, isLoading: insightsLoading } = useProductInsights();
   const { contacts } = useContacts();
-  const isLoading = salesLoading || insightsLoading;
+  const isLoading = salesLoading || insightsLoading || paymentsLoading;
 
   const contactNames = React.useMemo(() => {
     const m = new Map<string, string>();
@@ -43,8 +45,8 @@ export function SaleInsightsView() {
   }, [contacts]);
 
   const periodKpis = React.useMemo(
-    () => getPeriodSaleKpis(sales, saleItems, period),
-    [sales, saleItems, period]
+    () => getPeriodSaleKpis(sales, saleItems, period, payments),
+    [sales, saleItems, period, payments]
   );
   const paymentBreakdown = React.useMemo(
     () => getPaymentMethodBreakdown(sales, period),
@@ -118,9 +120,11 @@ export function SaleInsightsView() {
           ))}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {isLoading ? (
             <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
@@ -134,6 +138,14 @@ export function SaleInsightsView() {
               <StatCard
                 title={t("business.estimatedMargin")}
                 value={fmt(periodKpis.estimatedMargin)}
+              />
+              <StatCard
+                title={t("business.accountsReceivable")}
+                value={fmt(periodKpis.accountsReceivable)}
+              />
+              <StatCard
+                title={t("business.collectedInPeriod")}
+                value={fmt(periodKpis.collectedInPeriod)}
               />
             </>
           )}

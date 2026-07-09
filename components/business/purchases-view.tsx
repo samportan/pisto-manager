@@ -33,13 +33,13 @@ import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { purchasesKeys, useDeletePurchase, usePurchasesPaginated } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildPurchasesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import { getPurchasesByOrgId, type PurchaseWithMeta } from "@/lib/db/purchases";
 
 function PurchaseDetailBody({ purchaseId }: { purchaseId: string }) {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { data: lines, isLoading } = usePurchaseItems(purchaseId);
 
   if (isLoading) {
@@ -85,7 +85,7 @@ function PurchaseDetailBody({ purchaseId }: { purchaseId: string }) {
 
 export function PurchasesView() {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const queryClient = useQueryClient();
   const { deletePurchase, isDeleting } = useDeletePurchase();
   const { contacts } = useContacts();

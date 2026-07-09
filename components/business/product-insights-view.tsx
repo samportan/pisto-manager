@@ -33,11 +33,11 @@ import {
   downloadWorkbook,
   todayFilename,
 } from "@/lib/export/business-exports";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 
 export function ProductInsightsView() {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const [period, setPeriod] = React.useState<InsightsPeriod>("this_month");
   const [exporting, setExporting] = React.useState(false);
 

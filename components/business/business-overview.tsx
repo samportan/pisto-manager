@@ -18,11 +18,11 @@ import {
   getProductSalesRanking,
   getTopProductsByRevenue,
 } from "@/lib/analytics/business-products";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 
 export function BusinessOverview() {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { products, isLoading: productsLoading } = useProducts();
   const { sales, isLoading: salesLoading } = useSales();
   const { purchases, isLoading: purchasesLoading } = usePurchases();

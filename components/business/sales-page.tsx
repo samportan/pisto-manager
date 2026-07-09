@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 
 import { SaleInsightsView } from "@/components/business/sale-insights-view";
 import { SalesView } from "@/components/business/sales-view";
@@ -11,6 +12,8 @@ type SalesTab = "list" | "insights";
 
 export function SalesPage() {
   const { t } = useT();
+  const searchParams = useSearchParams();
+  const customerFilter = searchParams.get("customer") ?? undefined;
   const [tab, setTab] = React.useState<SalesTab>("list");
 
   return (
@@ -35,7 +38,7 @@ export function SalesPage() {
           </Button>
         </div>
       </div>
-      {tab === "list" ? <SalesView embedded /> : <SaleInsightsView />}
+      {tab === "list" ? <SalesView embedded customerFilter={customerFilter} /> : <SaleInsightsView />}
     </div>
   );
 }

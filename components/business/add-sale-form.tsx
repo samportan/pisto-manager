@@ -20,11 +20,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useT } from "@/hooks/useTranslations";
+import type { CollectionMode } from "@/hooks/useSales";
 import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
 import type { PaymentMethod, SaleLineInput } from "@/lib/db/sales";
-import { formatMoney } from "@/lib/format-money";
-import { multiplyMoney, sumMoney } from "@/lib/money";
+import { formatMoneyDisplay } from "@/lib/format-money";
+import {
+  applyCardSurcharge as calcCardSurcharge,
+  multiplyMoney,
+  sumMoney,
+  truncMoney,
+} from "@/lib/money";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
 
 export function toDatetimeLocalValue(d: Date) {
@@ -42,6 +48,8 @@ type Props = {
     date: string;
     notes: string | null;
     payment_method: PaymentMethod;
+    apply_card_surcharge: boolean;
+    amount_paid: number | null;
     items: SaleLineInput[];
   }) => Promise<void>;
   onCancel: () => void;
@@ -50,10 +58,13 @@ type Props = {
 
 export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitting }: Props) {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
 
   const [customerId, setCustomerId] = React.useState("");
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>("cash");
+  const [applyCardSurcharge, setApplyCardSurcharge] = React.useState(false);
+  const [collectionMode, setCollectionMode] = React.useState<CollectionMode>("full");
+  const [partialAmount, setPartialAmount] = React.useState("");
   const [dateLocal, setDateLocal] = React.useState(() => toDatetimeLocalValue(new Date()));
   const [notes, setNotes] = React.useState("");
   const [lines, setLines] = React.useState<Line[]>([
@@ -66,6 +77,12 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
     for (const p of products) m.set(p.id, p);
     return m;
   }, [products]);
+
+  React.useEffect(() => {
+    if (paymentMethod !== "card") {
+      setApplyCardSurcharge(false);
+    }
+  }, [paymentMethod]);
 
   function setLine(key: string, patch: Partial<Line>) {
     setLines((prev) =>
@@ -108,7 +125,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
     return totals;
   }, [lines]);
 
-  const totalPreview = React.useMemo(() => {
+  const subtotalPreview = React.useMemo(() => {
     const values: number[] = [];
     for (const row of lines) {
       if (!row.product_id) continue;
@@ -116,6 +133,29 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
     }
     return sumMoney(...values);
   }, [lines, lineTotals]);
+
+  const cardSurchargePreview = React.useMemo(() => {
+    if (paymentMethod !== "card") return 0;
+    return calcCardSurcharge(subtotalPreview);
+  }, [paymentMethod, subtotalPreview]);
+
+  const totalPreview = React.useMemo(() => {
+    if (paymentMethod === "card" && applyCardSurcharge) {
+      return sumMoney(subtotalPreview, cardSurchargePreview);
+    }
+    return subtotalPreview;
+  }, [paymentMethod, applyCardSurcharge, subtotalPreview, cardSurchargePreview]);
+
+  const amountPaidPreview = React.useMemo(() => {
+    if (collectionMode === "full") return totalPreview;
+    if (collectionMode === "credit") return 0;
+    return moneyInputToNumber(partialAmount);
+  }, [collectionMode, totalPreview, partialAmount]);
+
+  const balanceDuePreview = React.useMemo(
+    () => truncMoney(totalPreview - amountPaidPreview),
+    [totalPreview, amountPaidPreview]
+  );
 
   async function handleSubmit() {
     setLocalErr(null);
@@ -144,11 +184,31 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         });
       }
       if (items.length === 0) throw new Error(t("business.errorAddLine"));
+
+      if (collectionMode !== "full" && !customerId) {
+        throw new Error(t("business.errorCustomerRequiredCredit"));
+      }
+      if (collectionMode === "partial") {
+        const partial = moneyInputToNumber(partialAmount);
+        if (partial <= 0 || partial >= totalPreview) {
+          throw new Error(t("business.errorPartialAmount"));
+        }
+      }
+
+      const amountPaid =
+        collectionMode === "full"
+          ? null
+          : collectionMode === "credit"
+            ? 0
+            : moneyInputToNumber(partialAmount);
+
       await onSubmit({
         customer_id: customerId || null,
         date: new Date(dateLocal).toISOString(),
         notes: notes.trim() || null,
         payment_method: paymentMethod,
+        apply_card_surcharge: paymentMethod === "card" && applyCardSurcharge,
+        amount_paid: amountPaid,
         items,
       });
     } catch (err) {
@@ -201,6 +261,47 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
           className="h-11 text-base sm:h-10"
         />
       </div>
+
+      <div className="space-y-3 sm:col-span-2">
+        <Label>{t("business.collectionMode")}</Label>
+        <div className="flex flex-wrap gap-2">
+          {(["full", "partial", "credit"] as CollectionMode[]).map((mode) => (
+            <Button
+              key={mode}
+              type="button"
+              size="sm"
+              variant={collectionMode === mode ? "secondary" : "outline"}
+              onClick={() => setCollectionMode(mode)}
+            >
+              {mode === "full"
+                ? t("business.collectionFull")
+                : mode === "partial"
+                  ? t("business.collectionPartial")
+                  : t("business.collectionCredit")}
+            </Button>
+          ))}
+        </div>
+        {collectionMode === "partial" ? (
+          <div className="space-y-2">
+            <Label htmlFor="sale-partial-amount">{t("business.amountPaidToday")}</Label>
+            <MoneyInput
+              id="sale-partial-amount"
+              className="h-11 max-w-xs text-base"
+              value={partialAmount}
+              onChange={setPartialAmount}
+            />
+          </div>
+        ) : null}
+        {collectionMode === "credit" ? (
+          <p className="text-sm text-muted-foreground">{t("business.creditSaleHint")}</p>
+        ) : null}
+        {collectionMode !== "full" && !customerId ? (
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            {t("business.customerRequiredForCredit")}
+          </p>
+        ) : null}
+      </div>
+
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor="sale-notes">{t("business.notes")}</Label>
         <Textarea
@@ -308,6 +409,46 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
     </>
   );
 
+  const summaryExtra = (
+    <div className="space-y-2 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{t("business.subtotal")}</span>
+        <span className="tabular-nums font-medium">{fmt(subtotalPreview)}</span>
+      </div>
+      {paymentMethod === "card" ? (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t("business.cardSurcharge")}</span>
+            <span className="tabular-nums font-medium">{fmt(cardSurchargePreview)}</span>
+          </div>
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border p-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+              checked={applyCardSurcharge}
+              onChange={(e) => setApplyCardSurcharge(e.target.checked)}
+            />
+            <span className="text-sm leading-snug">{t("business.applyCardSurcharge")}</span>
+          </label>
+        </>
+      ) : null}
+      {collectionMode !== "full" ? (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground">{t("business.amountPaidToday")}</span>
+            <span className="tabular-nums font-medium">{fmt(amountPaidPreview)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+            <span className="font-medium">{t("business.balanceDue")}</span>
+            <span className="tabular-nums font-semibold text-amber-600 dark:text-amber-400">
+              {fmt(balanceDuePreview)}
+            </span>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+
   return (
     <DocumentFormPage
       backHref="/dashboard/business/sales"
@@ -318,8 +459,9 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
       detailsContent={detailsContent}
       linesTitle={t("business.lineItems")}
       linesContent={linesContent}
-      totalLabel={t("business.documentTotal")}
+      totalLabel={t("business.totalToCharge")}
       totalFormatted={fmt(totalPreview)}
+      summaryExtra={summaryExtra}
       summaryTitle={t("business.summary")}
       cancelLabel={t("common.cancel")}
       submitLabel={t("business.saveSale")}

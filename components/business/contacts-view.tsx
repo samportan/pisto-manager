@@ -4,6 +4,8 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Pencil, Search, Trash2 } from "lucide-react";
 
+import Link from "next/link";
+
 import { AddContactSheet } from "@/components/business/add-contact-sheet";
 import { EditContactSheet } from "@/components/business/edit-contact-sheet";
 import { PageHeader } from "@/components/business/page-header";
@@ -13,8 +15,10 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { useContacts } from "@/hooks/useContacts";
+import { useCustomerBalances } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import type { Contact } from "@/lib/db/contacts";
+import { formatMoneyDisplay } from "@/lib/format-money";
 
 function typeVariant(t: Contact["type"]): "secondary" | "outline" | "accent" {
   if (t === "customer") return "secondary";
@@ -23,9 +27,11 @@ function typeVariant(t: Contact["type"]): "secondary" | "outline" | "accent" {
 }
 
 export function ContactsView() {
-  const { t } = useT();
+  const { t, intlLocale, currency } = useT();
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { contacts, createContact, updateContact, deleteContact, isCreating, isUpdating, isDeleting, isLoading } =
     useContacts();
+  const { balanceByCustomer } = useCustomerBalances();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editContact, setEditContact] = React.useState<Contact | null>(null);
   const [search, setSearch] = React.useState("");
@@ -56,6 +62,24 @@ export function ContactsView() {
             {contactTypeLabel(row.original.type)}
           </Badge>
         ),
+      },
+      {
+        id: "balance",
+        header: t("business.balanceDue"),
+        cell: ({ row }) => {
+          const c = row.original;
+          if (c.type === "supplier") return t("common.empty");
+          const bal = balanceByCustomer.get(c.id);
+          if (!bal || bal.balance_due <= 0) return t("common.empty");
+          return (
+            <Link
+              href={`/dashboard/business/sales?customer=${c.id}`}
+              className="tabular-nums font-medium text-amber-600 hover:underline dark:text-amber-400"
+            >
+              {fmt(bal.balance_due)}
+            </Link>
+          );
+        },
       },
       {
         accessorKey: "phone",
@@ -97,7 +121,7 @@ export function ContactsView() {
         ),
       },
     ],
-    [contactTypeLabel, t]
+    [balanceByCustomer, contactTypeLabel, fmt, t]
   );
 
   return (

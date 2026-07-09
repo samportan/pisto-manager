@@ -15,13 +15,13 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { useProducts } from "@/hooks/useProducts";
 import { useT } from "@/hooks/useTranslations";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildProductsWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { Product } from "@/lib/db/products";
 
 export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
     useProducts();
   const [sheetOpen, setSheetOpen] = React.useState(false);

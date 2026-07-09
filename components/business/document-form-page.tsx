@@ -20,6 +20,7 @@ type DocumentFormPageProps = {
   linesContent: React.ReactNode;
   totalLabel: string;
   totalFormatted: string;
+  summaryExtra?: React.ReactNode;
   cancelLabel: string;
   submitLabel: string;
   savingLabel: string;
@@ -41,6 +42,7 @@ export function DocumentFormPage({
   linesContent,
   totalLabel,
   totalFormatted,
+  summaryExtra,
   cancelLabel,
   submitLabel,
   savingLabel,
@@ -109,7 +111,8 @@ export function DocumentFormPage({
                   <CardTitle>{summaryTitle}</CardTitle>
                   <CardDescription>{totalLabel}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  {summaryExtra}
                   <p className="text-3xl font-bold tabular-nums tracking-tight">{totalFormatted}</p>
                 </CardContent>
               </Card>

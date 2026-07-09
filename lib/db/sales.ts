@@ -4,6 +4,8 @@ import type { PaginatedResult } from "./pagination";
 export type { PaginatedResult };
 
 export type PaymentMethod = "cash" | "card" | "transfer";
+export type PaymentStatus = "paid" | "partial" | "credit";
+export type CollectionMode = "full" | "partial" | "credit";
 
 export type Sale = {
   id: string;
@@ -11,13 +13,20 @@ export type Sale = {
   organization_id: string;
   customer_id: string | null;
   date: string;
+  subtotal: number;
+  card_surcharge_rate: number | null;
+  card_surcharge_amount: number;
+  apply_card_surcharge: boolean;
   total: number;
   payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  amount_paid: number;
+  balance_due: number;
   notes: string | null;
   deleted_at: string | null;
 };
 
-export type NewSale = Omit<Sale, "id" | "total" | "deleted_at">;
+export type NewSale = Omit<Sale, "id" | "total" | "subtotal" | "balance_due" | "deleted_at">;
 
 export type ListSalesOptions = { includeDeleted?: boolean };
 
@@ -33,7 +42,15 @@ export type SalesListFilters = {
   dateFrom?: string;
   dateTo?: string;
   paymentMethod?: PaymentMethod | "all";
+  paymentStatus?: PaymentStatus | "all";
+  customerId?: string;
   search?: string;
+};
+
+export type CustomerBalance = {
+  customer_id: string;
+  balance_due: number;
+  open_sale_count: number;
 };
 
 async function attachSaleMeta(
@@ -81,7 +98,13 @@ async function attachSaleMeta(
     const extra = products.length > 3 ? `, +${products.length - 3}` : "";
     return {
       ...s,
+      subtotal: Number(s.subtotal ?? s.total),
+      card_surcharge_amount: Number(s.card_surcharge_amount ?? 0),
+      apply_card_surcharge: s.apply_card_surcharge ?? false,
       payment_method: (s.payment_method ?? "cash") as PaymentMethod,
+      payment_status: (s.payment_status ?? "paid") as PaymentStatus,
+      amount_paid: Number(s.amount_paid ?? s.total),
+      balance_due: Number(s.balance_due ?? 0),
       line_count: countBy.get(s.id) ?? 0,
       top_products: products.slice(0, 3),
       items_preview: previewParts.join(", ") + extra,
@@ -128,6 +151,12 @@ export async function listSalesPaginated(
   if (filters?.paymentMethod && filters.paymentMethod !== "all") {
     q = q.eq("payment_method", filters.paymentMethod);
   }
+  if (filters?.paymentStatus && filters.paymentStatus !== "all") {
+    q = q.eq("payment_status", filters.paymentStatus);
+  }
+  if (filters?.customerId) {
+    q = q.eq("customer_id", filters.customerId);
+  }
 
   const { data, error, count } = await q
     .order("date", { ascending: false })
@@ -153,11 +182,37 @@ export async function listSalesPaginated(
   };
 }
 
+export async function getCustomerBalances(orgId: string): Promise<CustomerBalance[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("sales")
+    .select("customer_id, balance_due")
+    .eq("organization_id", orgId)
+    .is("deleted_at", null)
+    .neq("payment_status", "paid")
+    .not("customer_id", "is", null);
+  if (error) throw error;
+
+  const byCustomer = new Map<string, CustomerBalance>();
+  for (const row of data ?? []) {
+    const r = row as { customer_id: string; balance_due: number };
+    const existing = byCustomer.get(r.customer_id) ?? {
+      customer_id: r.customer_id,
+      balance_due: 0,
+      open_sale_count: 0,
+    };
+    existing.balance_due += Number(r.balance_due);
+    existing.open_sale_count += 1;
+    byCustomer.set(r.customer_id, existing);
+  }
+  return [...byCustomer.values()];
+}
+
 export async function createSale(payload: NewSale): Promise<Sale> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("sales")
-    .insert({ ...payload, total: 0, deleted_at: null })
+    .insert({ ...payload, total: 0, subtotal: 0, deleted_at: null })
     .select("*")
     .single();
   if (error) throw error;
@@ -177,6 +232,8 @@ export async function createSaleWithItems(args: {
   date: string;
   notes: string | null;
   payment_method: PaymentMethod;
+  apply_card_surcharge: boolean;
+  amount_paid: number | null;
   items: SaleLineInput[];
 }): Promise<Sale> {
   if (args.items.length === 0) {
@@ -189,6 +246,8 @@ export async function createSaleWithItems(args: {
     p_date: args.date,
     p_notes: args.notes,
     p_payment_method: args.payment_method,
+    p_apply_card_surcharge: args.apply_card_surcharge,
+    p_amount_paid: args.amount_paid,
     p_items: args.items,
   });
   if (error) throw error;

@@ -4,6 +4,7 @@ import {
   localeToIntl,
   type Locale,
 } from "@/lib/i18n/config";
+import { MONEY_DISPLAY_SCALE, truncMoney } from "@/lib/money";
 
 export type FormatMoneyOptions = {
   currency?: string;
@@ -31,6 +32,15 @@ export function formatMoney(
     style: "currency",
     currency,
   }).format(value);
+}
+
+/** Truncates to 2 decimal places before formatting (business UI display). */
+export function formatMoneyDisplay(
+  value: number,
+  options?: FormatMoneyOptions | string
+) {
+  const truncated = truncMoney(value, MONEY_DISPLAY_SCALE);
+  return formatMoney(truncated, options);
 }
 
 export type FormatDateOptions = Intl.DateTimeFormatOptions & {

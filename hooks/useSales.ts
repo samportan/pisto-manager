@@ -3,9 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createSaleWithItems,
+  getCustomerBalances,
   getSalesByOrgId,
   listSalesPaginated,
   softDeleteSale,
+  type CollectionMode,
   type ListSalesOptions,
   type PaymentMethod,
   type SaleLineInput,
@@ -22,6 +24,10 @@ export const salesKeys = {
     ["sales", orgId, "paginated", page, pageSize, filters] as const,
 };
 
+export const customerBalanceKeys = {
+  all: (orgId: string) => ["customer-balances", orgId] as const,
+};
+
 function useSalesOrgId() {
   const { activeOrg, activeOrgId } = useActiveOrganization();
   const orgId = activeOrg.kind === "business" ? activeOrgId : null;
@@ -35,6 +41,24 @@ function useInvalidateSales() {
   return () => {
     if (!orgId) return;
     void queryClient.invalidateQueries({ queryKey: ["sales", orgId] });
+    void queryClient.invalidateQueries({ queryKey: customerBalanceKeys.all(orgId) });
+  };
+}
+
+export function useCustomerBalances() {
+  const { userId, sessionReady } = useAuthUserId();
+  const orgId = useSalesOrgId();
+
+  const query = useQuery({
+    queryKey: orgId ? customerBalanceKeys.all(orgId) : ["customer-balances", "idle"],
+    queryFn: () => getCustomerBalances(orgId!),
+    enabled: sessionReady && !!userId && !!orgId,
+  });
+
+  return {
+    balances: query.data ?? [],
+    balanceByCustomer: new Map((query.data ?? []).map((b) => [b.customer_id, b])),
+    isLoading: query.isPending && !query.data,
   };
 }
 
@@ -57,6 +81,8 @@ export function useSales(opts?: ListSalesOptions) {
       date: string;
       notes: string | null;
       payment_method: PaymentMethod;
+      apply_card_surcharge: boolean;
+      amount_paid: number | null;
       items: SaleLineInput[];
     }) => {
       if (!orgId) throw new Error("Must select a business organization.");
@@ -139,3 +165,5 @@ export function useSalesPaginated(
     isFetching: query.isFetching,
   };
 }
+
+export type { CollectionMode };

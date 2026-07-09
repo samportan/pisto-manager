@@ -1,6 +1,8 @@
 import type { PaymentMethod, SaleWithMeta } from "@/lib/db/sales";
+import type { SalePayment } from "@/lib/db/sale-payments";
 import type { ProductInsightSaleItem } from "@/lib/db/product-insights";
 import { filterByPeriod, type InsightsPeriod } from "@/lib/analytics/shared";
+import { sumMoney } from "@/lib/money";
 
 export type { InsightsPeriod };
 
@@ -9,6 +11,9 @@ export type PeriodSaleKpis = {
   revenue: number;
   avgTicket: number;
   estimatedMargin: number;
+  accountsReceivable: number;
+  openCreditCount: number;
+  collectedInPeriod: number;
 };
 
 export type PaymentMethodBreakdown = {
@@ -39,26 +44,46 @@ export function filterSalesByPeriod(
   return filterByPeriod(sales, period, (s) => s.date, now);
 }
 
+export function filterPaymentsByPeriod(
+  payments: SalePayment[],
+  period: InsightsPeriod,
+  now = new Date()
+): SalePayment[] {
+  return filterByPeriod(payments, period, (p) => p.date, now);
+}
+
 export function getPeriodSaleKpis(
   sales: SaleWithMeta[],
   saleItems: ProductInsightSaleItem[],
   period: InsightsPeriod,
+  payments: SalePayment[] = [],
   now = new Date()
 ): PeriodSaleKpis {
   const filtered = filterSalesByPeriod(sales, period, now);
   const saleIds = new Set(filtered.map((s) => s.id));
   const items = saleItems.filter((i) => saleIds.has(i.sale_id));
-  const revenue = filtered.reduce((sum, s) => sum + Number(s.total), 0);
+  const revenue = sumMoney(...filtered.map((s) => Number(s.total)));
   const estimatedMargin = items.reduce((sum, i) => {
     const cost = Number(i.cost_price ?? 0) * Number(i.quantity);
     return sum + Number(i.line_total) - cost;
   }, 0);
   const saleCount = filtered.length;
+
+  const openSales = sales.filter((s) => s.payment_status !== "paid");
+  const accountsReceivable = sumMoney(...openSales.map((s) => Number(s.balance_due)));
+  const openCreditCount = openSales.length;
+
+  const periodPayments = filterPaymentsByPeriod(payments, period, now);
+  const collectedInPeriod = sumMoney(...periodPayments.map((p) => Number(p.amount)));
+
   return {
     saleCount,
     revenue,
     avgTicket: saleCount > 0 ? revenue / saleCount : 0,
     estimatedMargin,
+    accountsReceivable,
+    openCreditCount,
+    collectedInPeriod,
   };
 }
 
@@ -68,11 +93,11 @@ export function getPaymentMethodBreakdown(
   now = new Date()
 ): PaymentMethodBreakdown[] {
   const filtered = filterSalesByPeriod(sales, period, now);
-  const total = filtered.reduce((sum, s) => sum + Number(s.total), 0);
+  const total = sumMoney(...filtered.map((s) => Number(s.total)));
   const methods: PaymentMethod[] = ["cash", "card", "transfer"];
   return methods.map((method) => {
     const matching = filtered.filter((s) => s.payment_method === method);
-    const revenue = matching.reduce((sum, s) => sum + Number(s.total), 0);
+    const revenue = sumMoney(...matching.map((s) => Number(s.total)));
     return {
       method,
       revenue,
@@ -101,7 +126,7 @@ export function getCustomerSalesRanking(
       revenue: 0,
     };
     existing.saleCount += 1;
-    existing.revenue += Number(s.total);
+    existing.revenue = sumMoney(existing.revenue, Number(s.total));
     byCustomer.set(key, existing);
   }
 
@@ -126,7 +151,7 @@ export function getSalesByDay(
   for (const s of filtered) {
     const day = s.date.slice(0, 10);
     const existing = byDay.get(day) ?? { date: day, revenue: 0, count: 0 };
-    existing.revenue += Number(s.total);
+    existing.revenue = sumMoney(existing.revenue, Number(s.total));
     existing.count += 1;
     byDay.set(day, existing);
   }

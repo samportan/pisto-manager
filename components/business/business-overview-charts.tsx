@@ -1,7 +1,7 @@
 "use client";
 
 import { useT } from "@/hooks/useTranslations";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 
 type RevenuePurchasesChartProps = {
   data: Array<{ label: string; revenue: number; purchases: number }>;
@@ -35,7 +35,7 @@ export function BusinessRevenuePurchasesChart({
                   height: `${(d.revenue / max) * 100}%`,
                   minHeight: d.revenue > 0 ? 4 : 0,
                 }}
-                title={`${d.label} ${t("business.revenue")}: ${formatMoney(d.revenue, { currency, locale: intlLocale })}`}
+                title={`${d.label} ${t("business.revenue")}: ${formatMoneyDisplay(d.revenue, { currency, locale: intlLocale })}`}
               />
               <div
                 className="w-2 rounded-t bg-amber-500/80 sm:w-3"
@@ -43,7 +43,7 @@ export function BusinessRevenuePurchasesChart({
                   height: `${(d.purchases / max) * 100}%`,
                   minHeight: d.purchases > 0 ? 4 : 0,
                 }}
-                title={`${d.label} ${t("business.purchases")}: ${formatMoney(d.purchases, { currency, locale: intlLocale })}`}
+                title={`${d.label} ${t("business.purchases")}: ${formatMoneyDisplay(d.purchases, { currency, locale: intlLocale })}`}
               />
             </div>
             <span className="text-[10px] text-muted-foreground sm:text-xs">{d.label}</span>
@@ -94,7 +94,7 @@ export function HorizontalBarChart({ data, emptyLabel }: HorizontalBarChartProps
           <div className="mb-1 flex items-center justify-between gap-2 text-sm">
             <span className="truncate font-medium">{d.name}</span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
-              {formatMoney(d.total, { currency, locale: intlLocale })}
+              {formatMoneyDisplay(d.total, { currency, locale: intlLocale })}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">

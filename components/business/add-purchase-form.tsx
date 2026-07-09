@@ -24,7 +24,7 @@ import { useT } from "@/hooks/useTranslations";
 import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
 import type { PurchaseLineInput } from "@/lib/db/purchases";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoneyDisplay } from "@/lib/format-money";
 import { multiplyMoney, sumMoney } from "@/lib/money";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
 
@@ -45,7 +45,7 @@ type Props = {
 
 export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSubmitting }: Props) {
   const { t, intlLocale, currency } = useT();
-  const fmt = (v: number) => formatMoney(v, { currency, locale: intlLocale });
+  const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
 
   const [supplierId, setSupplierId] = React.useState("");
   const [dateLocal, setDateLocal] = React.useState(() => toDatetimeLocalValue(new Date()));

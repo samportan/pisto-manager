@@ -1,18 +1,43 @@
-export function toCents(value: number): number {
-  return Math.round(value * 100);
+export const MONEY_SCALE = 3;
+export const MONEY_DISPLAY_SCALE = 2;
+export const CARD_SURCHARGE_RATE = 0.05;
+
+const MILLI_FACTOR = 10 ** MONEY_SCALE;
+
+export function truncMoney(value: number, scale = MONEY_SCALE): number {
+  const factor = 10 ** scale;
+  return Math.trunc(value * factor) / factor;
 }
 
+export function toMilli(value: number): number {
+  return Math.trunc(value * MILLI_FACTOR);
+}
+
+export function fromMilli(milli: number): number {
+  return milli / MILLI_FACTOR;
+}
+
+/** @deprecated Use toMilli – kept for compatibility */
+export function toCents(value: number): number {
+  return toMilli(value);
+}
+
+/** @deprecated Use fromMilli – kept for compatibility */
 export function fromCents(cents: number): number {
-  return cents / 100;
+  return fromMilli(cents);
 }
 
 export function multiplyMoney(qty: number, unitPrice: number): number {
-  return fromCents(Math.round(qty * toCents(unitPrice)));
+  return truncMoney(qty * unitPrice, MONEY_SCALE);
 }
 
 export function sumMoney(...values: number[]): number {
-  const totalCents = values.reduce((sum, value) => sum + toCents(value), 0);
-  return fromCents(totalCents);
+  const totalMilli = values.reduce((sum, value) => sum + toMilli(value), 0);
+  return fromMilli(totalMilli);
+}
+
+export function applyCardSurcharge(subtotal: number): number {
+  return truncMoney(subtotal * CARD_SURCHARGE_RATE, MONEY_SCALE);
 }
 
 export function parseMoneyInput(value: string): number | null {
