@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 
+import { ContactPicker } from "@/components/business/contact-picker";
 import { DocumentFormPage } from "@/components/business/document-form-page";
 import { ProductPicker } from "@/components/business/product-picker";
 import { Button } from "@/components/ui/button";
@@ -223,19 +224,17 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor="sale-customer">{t("business.customer")}</Label>
-        <NativeSelect
+        <ContactPicker
           id="sale-customer"
+          contacts={customers}
           value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
+          onValueChange={setCustomerId}
+          allowEmpty
+          emptyLabel={t("business.walkInNoCustomer")}
+          searchPlaceholder={t("business.searchCustomers")}
+          noMatchLabel={t("business.noCustomersMatch")}
           className="h-11 text-base sm:h-10"
-        >
-          <option value="">{t("business.walkInNoCustomer")}</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </NativeSelect>
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="sale-payment">{t("business.paymentMethod")}</Label>
