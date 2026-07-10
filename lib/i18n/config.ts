@@ -11,5 +11,5 @@ export function isValidLocale(value: string): value is Locale {
 }
 
 export function localeToIntl(locale: Locale): string {
-  return locale === "es" ? "es-MX" : "en-US";
+  return locale === "es" ? "es-SV" : "en-US";
 }

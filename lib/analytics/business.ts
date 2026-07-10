@@ -1,5 +1,6 @@
 import type { Purchase } from "@/lib/db/purchases";
 import type { Sale } from "@/lib/db/sales";
+import { getZonedParts } from "@/lib/timezone";
 
 export type BusinessMonthTotals = {
   revenue: number;
@@ -13,8 +14,8 @@ export type BusinessMonthSeries = BusinessMonthTotals & {
 };
 
 function docInMonth(dateStr: string, year: number, month: number): boolean {
-  const d = new Date(dateStr);
-  return d.getMonth() === month && d.getFullYear() === year;
+  const parts = getZonedParts(dateStr);
+  return parts.year === year && parts.month === month;
 }
 
 export function getMonthBusinessTotals(
@@ -37,15 +38,25 @@ export function getLastNMonthsBusinessTotals(
   purchases: Purchase[],
   n: number
 ): BusinessMonthSeries[] {
-  const now = new Date();
+  const nowParts = getZonedParts(new Date());
   const result: BusinessMonthSeries[] = [];
 
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const totals = getMonthBusinessTotals(sales, purchases, d.getFullYear(), d.getMonth());
+    let month = nowParts.month - i;
+    let year = nowParts.year;
+    while (month < 1) {
+      month += 12;
+      year -= 1;
+    }
+    const totals = getMonthBusinessTotals(sales, purchases, year, month);
+    const labelDate = new Date(Date.UTC(year, month - 1, 15, 12, 0, 0));
     result.push({
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-      label: d.toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+      key: `${year}-${String(month).padStart(2, "0")}`,
+      label: labelDate.toLocaleDateString(undefined, {
+        month: "short",
+        year: "2-digit",
+        timeZone: "America/El_Salvador",
+      }),
       ...totals,
     });
   }

@@ -1,8 +1,11 @@
-export type InsightsPeriod = "this_month" | "last_30_days" | "all_time";
+import {
+  isSameZonedDay,
+  isSameZonedMonth,
+  subtractZonedDays,
+  toZonedDateString,
+} from "@/lib/timezone";
 
-function parseDate(dateStr: string): Date {
-  return new Date(dateStr);
-}
+export type InsightsPeriod = "today" | "this_month" | "last_30_days" | "all_time";
 
 export function filterByPeriod<T>(
   items: T[],
@@ -12,16 +15,15 @@ export function filterByPeriod<T>(
 ): T[] {
   if (period === "all_time") return items;
 
-  if (period === "this_month") {
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    return items.filter((item) => {
-      const d = parseDate(getDate(item));
-      return d.getMonth() === m && d.getFullYear() === y;
-    });
+  if (period === "today") {
+    const today = toZonedDateString(now);
+    return items.filter((item) => toZonedDateString(getDate(item)) === today);
   }
 
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - 30);
-  return items.filter((item) => parseDate(getDate(item)) >= cutoff);
+  if (period === "this_month") {
+    return items.filter((item) => isSameZonedMonth(getDate(item), now));
+  }
+
+  const cutoff = subtractZonedDays(toZonedDateString(now), 30);
+  return items.filter((item) => toZonedDateString(getDate(item)) >= cutoff);
 }

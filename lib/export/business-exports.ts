@@ -5,6 +5,7 @@ import type { PurchaseWithMeta } from "@/lib/db/purchases";
 import type { SaleWithMeta } from "@/lib/db/sales";
 import type { ProductSalesRank } from "@/lib/analytics/business-products";
 import { downloadWorkbook, todayFilename, type SheetRow } from "@/lib/export/excel";
+import { formatDateForExport } from "@/lib/timezone";
 
 type ContactMap = Map<string, string>;
 
@@ -13,7 +14,7 @@ function contactMap(contacts: Contact[]): ContactMap {
 }
 
 function dateOnly(value: string): string {
-  return value.slice(0, 10);
+  return formatDateForExport(value);
 }
 
 export function productsToRows(products: Product[]): SheetRow[] {

@@ -13,12 +13,13 @@ import { useProducts } from "@/hooks/useProducts";
 import { usePurchases } from "@/hooks/usePurchases";
 import { useSales } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
-import { getLastNMonthsBusinessTotals } from "@/lib/analytics/business";
+import { getLastNMonthsBusinessTotals, getMonthBusinessTotals } from "@/lib/analytics/business";
 import {
   getProductSalesRanking,
   getTopProductsByRevenue,
 } from "@/lib/analytics/business-products";
 import { formatMoneyDisplay } from "@/lib/format-money";
+import { getZonedParts } from "@/lib/timezone";
 
 export function BusinessOverview() {
   const { t, intlLocale, currency } = useT();
@@ -30,23 +31,17 @@ export function BusinessOverview() {
   const isLoading = productsLoading || salesLoading || purchasesLoading || insightsLoading;
 
   const stats = useMemo(() => {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    const monthSales = sales.filter((x) => {
-      const d = new Date(x.date);
-      return d.getMonth() === m && d.getFullYear() === y;
-    });
-    const monthPurchases = purchases.filter((x) => {
-      const d = new Date(x.date);
-      return d.getMonth() === m && d.getFullYear() === y;
-    });
-    const revenue = monthSales.reduce((sum, x) => sum + Number(x.total ?? 0), 0);
-    const expense = monthPurchases.reduce((sum, x) => sum + Number(x.total ?? 0), 0);
+    const { year, month } = getZonedParts(new Date());
+    const totals = getMonthBusinessTotals(sales, purchases, year, month);
     const lowStock = products.filter(
       (p) => (p.min_stock ?? 0) > 0 && p.stock <= (p.min_stock ?? 0)
     ).length;
-    return { revenue, expense, lowStock, margin: revenue - expense };
+    return {
+      revenue: totals.revenue,
+      expense: totals.purchases,
+      lowStock,
+      margin: totals.margin,
+    };
   }, [products, purchases, sales]);
 
   const chartMonths = useMemo(

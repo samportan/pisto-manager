@@ -130,7 +130,7 @@
   },
   "business": {
     "overviewTitle": "Business overview",
-    "overviewSubtitle": "Monthly KPIs (includes soft-deleted docs so numbers stay stable).",
+    "overviewSubtitle": "Monthly KPIs in El Salvador time. Active documents only (excludes soft-deleted).",
     "revenue": "Revenue",
     "purchases": "Purchases",
     "grossMargin": "Gross margin",
@@ -273,6 +273,7 @@
     "topByRevenue": "Top by revenue",
     "topByUnits": "Top by units",
     "performanceTable": "Product performance",
+    "periodToday": "Today",
     "periodThisMonth": "This month",
     "period30Days": "Last 30 days",
     "periodAllTime": "All time",

@@ -1,7 +1,9 @@
+import { toZonedDateString } from "@/lib/timezone";
+
 export type SheetRow = Record<string, string | number | boolean | null>;
 
 export function todayFilename(prefix: string): string {
-  return `${prefix}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  return `${prefix}-${toZonedDateString(new Date())}.xlsx`;
 }
 
 export async function loadXlsx() {
