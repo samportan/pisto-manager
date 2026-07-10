@@ -1,3 +1,4 @@
+import { localDayEndUtcIso, localDayStartUtcIso } from "@/lib/timezone";
 import { createClient } from "../client";
 import type { PaginatedResult } from "./pagination";
 
@@ -143,10 +144,10 @@ export async function listSalesPaginated(
     .is("deleted_at", null);
 
   if (filters?.dateFrom) {
-    q = q.gte("date", filters.dateFrom);
+    q = q.gte("date", localDayStartUtcIso(filters.dateFrom));
   }
   if (filters?.dateTo) {
-    q = q.lte("date", `${filters.dateTo}T23:59:59.999Z`);
+    q = q.lte("date", localDayEndUtcIso(filters.dateTo));
   }
   if (filters?.paymentMethod && filters.paymentMethod !== "all") {
     q = q.eq("payment_method", filters.paymentMethod);

@@ -130,7 +130,7 @@
   },
   "business": {
     "overviewTitle": "Resumen del negocio",
-    "overviewSubtitle": "KPIs mensuales (incluye documentos eliminados suavemente para mantener números estables).",
+    "overviewSubtitle": "KPIs mensuales según hora de El Salvador. Solo documentos activos (sin eliminados).",
     "revenue": "Ingresos",
     "purchases": "Compras",
     "grossMargin": "Margen bruto",
@@ -273,6 +273,7 @@
     "topByRevenue": "Top por ingresos",
     "topByUnits": "Top por unidades",
     "performanceTable": "Rendimiento por producto",
+    "periodToday": "Hoy",
     "periodThisMonth": "Este mes",
     "period30Days": "Últimos 30 días",
     "periodAllTime": "Todo el tiempo",

@@ -64,6 +64,7 @@ export function SaleInsightsView() {
   const topDays = React.useMemo(() => getTopDaysByRevenue(dailyRevenue, 5), [dailyRevenue]);
 
   const periodOptions: { value: InsightsPeriod; label: string }[] = [
+    { value: "today", label: t("business.periodToday") },
     { value: "this_month", label: t("business.periodThisMonth") },
     { value: "last_30_days", label: t("business.period30Days") },
     { value: "all_time", label: t("business.periodAllTime") },

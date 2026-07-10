@@ -3,6 +3,7 @@ import type { SalePayment } from "@/lib/db/sale-payments";
 import type { ProductInsightSaleItem } from "@/lib/db/product-insights";
 import { filterByPeriod, type InsightsPeriod } from "@/lib/analytics/shared";
 import { sumMoney } from "@/lib/money";
+import { toZonedDateString } from "@/lib/timezone";
 
 export type { InsightsPeriod };
 
@@ -149,7 +150,7 @@ export function getSalesByDay(
   const byDay = new Map<string, DailyRevenue>();
 
   for (const s of filtered) {
-    const day = s.date.slice(0, 10);
+    const day = toZonedDateString(s.date);
     const existing = byDay.get(day) ?? { date: day, revenue: 0, count: 0 };
     existing.revenue = sumMoney(existing.revenue, Number(s.total));
     existing.count += 1;

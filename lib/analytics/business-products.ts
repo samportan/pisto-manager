@@ -1,6 +1,6 @@
 import type { ProductInsightSaleItem } from "@/lib/db/product-insights";
 import type { Product } from "@/lib/db/products";
-import type { InsightsPeriod } from "@/lib/analytics/shared";
+import { filterByPeriod, type InsightsPeriod } from "@/lib/analytics/shared";
 
 export type { InsightsPeriod } from "@/lib/analytics/shared";
 
@@ -23,29 +23,12 @@ export type ProductSalesRank = {
   lowStock: boolean;
 };
 
-function parseDate(dateStr: string): Date {
-  return new Date(dateStr);
-}
-
 export function filterSaleItemsByPeriod(
   items: ProductInsightSaleItem[],
   period: InsightsPeriod,
   now = new Date()
 ): ProductInsightSaleItem[] {
-  if (period === "all_time") return items;
-
-  if (period === "this_month") {
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    return items.filter((item) => {
-      const d = parseDate(item.sale_date);
-      return d.getMonth() === m && d.getFullYear() === y;
-    });
-  }
-
-  const cutoff = new Date(now);
-  cutoff.setDate(cutoff.getDate() - 30);
-  return items.filter((item) => parseDate(item.sale_date) >= cutoff);
+  return filterByPeriod(items, period, (item) => item.sale_date, now);
 }
 
 export function getInventoryKpis(products: Product[]): InventoryKpis {
