@@ -22,6 +22,8 @@ export type ExportPurchaseLine = {
   product_name: string | null;
   product_sku: string | null;
   quantity: number;
+  quantity_ordered: number;
+  quantity_received: number | null;
   unit_cost: number;
   line_total: number;
 };
@@ -47,6 +49,8 @@ type PurchaseItemExportRow = {
   purchase_id: string;
   product_id: string;
   quantity: number;
+  quantity_ordered: number;
+  quantity_received: number | null;
   unit_cost: number;
   line_total: number;
   purchases: {
@@ -93,7 +97,7 @@ export async function getPurchaseItemsByOrgId(
   const { data, error } = await supabase
     .from("purchase_items")
     .select(
-      "id, purchase_id, product_id, quantity, unit_cost, line_total, purchases!inner(date, supplier_id, organization_id, deleted_at), products(name, sku)"
+      "id, purchase_id, product_id, quantity, quantity_ordered, quantity_received, unit_cost, line_total, purchases!inner(date, supplier_id, organization_id, deleted_at), products(name, sku)"
     )
     .eq("purchases.organization_id", orgId)
     .is("deleted_at", null)
@@ -111,6 +115,8 @@ export async function getPurchaseItemsByOrgId(
     product_name: row.products?.name ?? null,
     product_sku: row.products?.sku ?? null,
     quantity: Number(row.quantity),
+    quantity_ordered: Number(row.quantity_ordered ?? row.quantity),
+    quantity_received: row.quantity_received != null ? Number(row.quantity_received) : null,
     unit_cost: Number(row.unit_cost),
     line_total: Number(row.line_total),
   }));

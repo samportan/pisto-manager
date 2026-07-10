@@ -2,12 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  cancelPendingPurchase,
   createPurchaseWithItems,
   getPurchasesByOrgId,
   listPurchasesPaginated,
+  receivePurchase,
   softDeletePurchase,
+  updatePendingPurchase,
+  updateReceivedPurchase,
+  type CreatePurchaseArgs,
   type ListPurchasesOptions,
-  type PurchaseLineInput,
+  type ReceivePurchaseArgs,
+  type UpdatePendingPurchaseArgs,
+  type UpdateReceivedPurchaseArgs,
   type PurchasesListFilters,
 } from "@/lib/db/purchases";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
@@ -37,6 +44,16 @@ function useInvalidatePurchases() {
   };
 }
 
+async function refetchProductsIfNeeded(
+  queryClient: ReturnType<typeof useQueryClient>,
+  orgId: string | null,
+  affectsStock: boolean
+) {
+  if (orgId && affectsStock) {
+    await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
+  }
+}
+
 export function usePurchases(opts?: ListPurchasesOptions) {
   const queryClient = useQueryClient();
   const { userId, sessionReady } = useAuthUserId();
@@ -51,20 +68,17 @@ export function usePurchases(opts?: ListPurchasesOptions) {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (payload: {
-      supplier_id: string | null;
-      date: string;
-      notes: string | null;
-      items: PurchaseLineInput[];
-    }) => {
+    mutationFn: async (payload: Omit<CreatePurchaseArgs, "organization_id">) => {
       if (!orgId) throw new Error("Must select a business organization.");
       return createPurchaseWithItems({ ...payload, organization_id: orgId });
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       invalidate();
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refetchProductsIfNeeded(
+        queryClient,
+        orgId,
+        variables.receipt_status === "received"
+      );
     },
   });
 
@@ -73,9 +87,7 @@ export function usePurchases(opts?: ListPurchasesOptions) {
     onSuccess: async () => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["purchase-items"] });
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refetchProductsIfNeeded(queryClient, orgId, true);
     },
   });
 
@@ -100,15 +112,91 @@ export function useDeletePurchase() {
     onSuccess: async () => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["purchase-items"] });
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refetchProductsIfNeeded(queryClient, orgId, true);
     },
   });
 
   return {
     deletePurchase: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
+  };
+}
+
+export function useUpdatePendingPurchase() {
+  const queryClient = useQueryClient();
+  const orgId = usePurchasesOrgId();
+  const invalidate = useInvalidatePurchases();
+
+  const mutation = useMutation({
+    mutationFn: (args: UpdatePendingPurchaseArgs) => updatePendingPurchase(args),
+    onSuccess: async () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["purchase-items"] });
+    },
+  });
+
+  return {
+    updatePendingPurchase: mutation.mutateAsync,
+    isUpdating: mutation.isPending,
+  };
+}
+
+export function useReceivePurchase() {
+  const queryClient = useQueryClient();
+  const orgId = usePurchasesOrgId();
+  const invalidate = useInvalidatePurchases();
+
+  const mutation = useMutation({
+    mutationFn: (args: ReceivePurchaseArgs) => receivePurchase(args),
+    onSuccess: async () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["purchase-items"] });
+      await refetchProductsIfNeeded(queryClient, orgId, true);
+    },
+  });
+
+  return {
+    receivePurchase: mutation.mutateAsync,
+    isReceiving: mutation.isPending,
+  };
+}
+
+export function useUpdateReceivedPurchase() {
+  const queryClient = useQueryClient();
+  const orgId = usePurchasesOrgId();
+  const invalidate = useInvalidatePurchases();
+
+  const mutation = useMutation({
+    mutationFn: (args: UpdateReceivedPurchaseArgs) => updateReceivedPurchase(args),
+    onSuccess: async () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["purchase-items"] });
+      await refetchProductsIfNeeded(queryClient, orgId, true);
+    },
+  });
+
+  return {
+    updateReceivedPurchase: mutation.mutateAsync,
+    isUpdating: mutation.isPending,
+  };
+}
+
+export function useCancelPendingPurchase() {
+  const queryClient = useQueryClient();
+  const orgId = usePurchasesOrgId();
+  const invalidate = useInvalidatePurchases();
+
+  const mutation = useMutation({
+    mutationFn: (id: string) => cancelPendingPurchase(id),
+    onSuccess: async () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["purchase-items"] });
+    },
+  });
+
+  return {
+    cancelPendingPurchase: mutation.mutateAsync,
+    isCancelling: mutation.isPending,
   };
 }
 

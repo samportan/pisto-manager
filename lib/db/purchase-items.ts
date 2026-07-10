@@ -5,8 +5,11 @@ export type PurchaseItem = {
   purchase_id: string;
   product_id: string;
   quantity: number;
+  quantity_ordered: number;
+  quantity_received: number | null;
   unit_cost: number;
   line_total: number;
+  unit_of_measure: string | null;
   deleted_at: string | null;
 };
 
@@ -30,6 +33,8 @@ export type NewPurchaseItemRow = {
   purchase_id: string;
   product_id: string;
   quantity: number;
+  quantity_ordered: number;
+  quantity_received: number | null;
   unit_cost: number;
   line_total: number;
 };
