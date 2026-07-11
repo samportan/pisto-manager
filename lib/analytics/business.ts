@@ -28,6 +28,7 @@ export function getMonthBusinessTotals(
     .filter((s) => docInMonth(s.date, year, month))
     .reduce((sum, s) => sum + Number(s.total ?? 0), 0);
   const expense = purchases
+    .filter((p) => (p.receipt_status ?? "received") === "received")
     .filter((p) => docInMonth(p.date, year, month))
     .reduce((sum, p) => sum + Number(p.total ?? 0), 0);
   return { revenue, purchases: expense, margin: revenue - expense };
