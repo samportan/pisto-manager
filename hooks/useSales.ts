@@ -16,6 +16,7 @@ import {
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
 import { productKeys } from "@/hooks/useProducts";
+import { salePaymentKeys } from "@/hooks/useSalePayments";
 
 export const salesKeys = {
   all: (orgId: string, opts?: ListSalesOptions) =>
@@ -98,9 +99,10 @@ export function useSales(opts?: ListSalesOptions) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => softDeleteSale(id),
-    onSuccess: async () => {
+    onSuccess: async (_data, saleId) => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["sale-items"] });
+      void queryClient.invalidateQueries({ queryKey: salePaymentKeys.bySale(saleId) });
       if (orgId) {
         await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
       }
@@ -125,9 +127,10 @@ export function useDeleteSale() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => softDeleteSale(id),
-    onSuccess: async () => {
+    onSuccess: async (_data, saleId) => {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["sale-items"] });
+      void queryClient.invalidateQueries({ queryKey: salePaymentKeys.bySale(saleId) });
       if (orgId) {
         await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
       }

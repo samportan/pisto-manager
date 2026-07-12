@@ -1,5 +1,21 @@
 type TranslateFn = (key: string, values?: Record<string, string | number>) => string;
 
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message.trim()) {
+    return err.message;
+  }
+  if (typeof err === "object" && err !== null) {
+    const record = err as { message?: unknown; details?: unknown };
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.details === "string" && record.details.trim()) {
+      return record.details;
+    }
+  }
+  return "";
+}
+
 export function mapRpcError(
   message: string,
   t: TranslateFn,
@@ -50,8 +66,9 @@ export function resolveErrorMessage(
   t: TranslateFn,
   context: "save" | "delete" = "save"
 ): string {
-  if (!(err instanceof Error)) {
+  const raw = extractErrorMessage(err);
+  if (!raw.trim()) {
     return t(context === "delete" ? "common.errorDelete" : "common.errorSave");
   }
-  return mapRpcError(err.message, t, context);
+  return mapRpcError(raw, t, context);
 }
