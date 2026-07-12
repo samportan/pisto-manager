@@ -21,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import type { CollectionMode } from "@/hooks/useSales";
 import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
@@ -60,6 +61,7 @@ type Props = {
 
 export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitting }: Props) {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
 
   const [customerId, setCustomerId] = React.useState("");
@@ -72,7 +74,6 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
   const [lines, setLines] = React.useState<Line[]>([
     { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_price: "" },
   ]);
-  const [localErr, setLocalErr] = React.useState<string | null>(null);
 
   const productById = React.useMemo(() => {
     const m = new Map<string, Product>();
@@ -160,7 +161,6 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
   );
 
   async function handleSubmit() {
-    setLocalErr(null);
     const items: SaleLineInput[] = [];
     try {
       for (const row of lines) {
@@ -214,7 +214,7 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         items,
       });
     } catch (err) {
-      setLocalErr(err instanceof Error ? err.message : t("common.errorSave"));
+      toast.errorFrom(err);
     }
   }
 
@@ -482,7 +482,6 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
       isSubmitting={isSubmitting}
       onCancel={onCancel}
       onSubmit={() => void handleSubmit()}
-      error={localErr}
     />
   );
 }

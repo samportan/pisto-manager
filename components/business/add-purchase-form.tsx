@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
 import type {
@@ -89,6 +90,7 @@ export function buildPurchaseLineItems(
 
 export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSubmitting }: Props) {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
 
   const [receiptMode, setReceiptMode] = React.useState<PurchaseCreateMode>("received");
@@ -104,7 +106,6 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
   const [lines, setLines] = React.useState<Line[]>([
     { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_cost: "" },
   ]);
-  const [localErr, setLocalErr] = React.useState<string | null>(null);
 
   const productById = React.useMemo(() => {
     const m = new Map<string, Product>();
@@ -173,7 +174,6 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
   }
 
   async function handleSubmit() {
-    setLocalErr(null);
     try {
       const items = buildPurchaseLineItems(lines, productById, t, {
         includeReceived: receiptMode === "received",
@@ -204,7 +204,7 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
         items,
       });
     } catch (err) {
-      setLocalErr(err instanceof Error ? err.message : t("common.errorSave"));
+      toast.errorFrom(err);
     }
   }
 
@@ -510,7 +510,6 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
       isSubmitting={isSubmitting}
       onCancel={onCancel}
       onSubmit={() => void handleSubmit()}
-      error={localErr}
     />
   );
 }

@@ -443,5 +443,31 @@
     "required": "Required field",
     "noRows": "No rows.",
     "noMatches": "No matches."
+  },
+  "toast": {
+    "saleSaved": "Sale saved successfully.",
+    "saleDeleted": "Sale deleted.",
+    "paymentRecorded": "Payment recorded.",
+    "purchaseSaved": "Purchase saved successfully.",
+    "purchaseReceived": "Purchase received and stock updated.",
+    "purchaseUpdated": "Purchase updated.",
+    "purchaseDeleted": "Purchase deleted.",
+    "purchasePaymentRecorded": "Supplier payment recorded.",
+    "productSaved": "Product created.",
+    "productUpdated": "Product updated.",
+    "productDeleted": "Product deleted.",
+    "contactSaved": "Contact created.",
+    "contactUpdated": "Contact updated.",
+    "contactDeleted": "Contact deleted.",
+    "exportReady": "Excel file downloaded.",
+    "errorInsufficientStockRpc": "Insufficient stock. Another user may have sold the same product.",
+    "errorDeleteSaleBalance": "Cannot delete a sale with an outstanding balance.",
+    "errorDeleteSalePayments": "Cannot delete a sale with recorded payments.",
+    "errorDeletePurchaseBalance": "Cannot delete a purchase with an outstanding balance.",
+    "errorDeletePurchasePayments": "Cannot delete a purchase with recorded payments.",
+    "errorNotAuthenticated": "You must sign in to continue.",
+    "errorNoOrgAccess": "You do not have access to this organization.",
+    "errorProductNotFound": "Product not found or deleted.",
+    "errorForbidden": "You do not have permission for this action."
   }
 }

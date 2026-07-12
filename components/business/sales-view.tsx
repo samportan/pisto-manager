@@ -36,6 +36,7 @@ import { useSaleItems } from "@/hooks/useSaleItems";
 import { useSalePayments } from "@/hooks/useSalePayments";
 import { salesKeys, useDeleteSale, useSalesPaginated } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildSalesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import {
@@ -254,6 +255,7 @@ type Props = { embedded?: boolean; customerFilter?: string };
 
 export function SalesView({ embedded = false, customerFilter }: Props) {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const queryClient = useQueryClient();
   const { deleteSale, isDeleting } = useDeleteSale();
@@ -640,8 +642,12 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
         variant="destructive"
         isPending={isDeleting}
         onConfirm={async () => {
-          if (deleteId) await deleteSale(deleteId);
+          if (deleteId) {
+            await deleteSale(deleteId);
+            toast.success("toast.saleDeleted");
+          }
         }}
+        onError={(err) => toast.errorFrom(err, "delete")}
       />
     </div>
   );

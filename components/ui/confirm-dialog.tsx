@@ -18,6 +18,7 @@ type ConfirmDialogProps = {
   variant?: "default" | "destructive";
   isPending?: boolean;
   onConfirm: () => void | Promise<void>;
+  onError?: (error: unknown) => void;
 };
 
 export function ConfirmDialog({
@@ -31,6 +32,7 @@ export function ConfirmDialog({
   variant = "default",
   isPending,
   onConfirm,
+  onError,
 }: ConfirmDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -73,8 +75,8 @@ export function ConfirmDialog({
                   try {
                     await Promise.resolve(onConfirm());
                     onOpenChange(false);
-                  } catch {
-                    // keep open
+                  } catch (err) {
+                    onError?.(err);
                   }
                 })();
               }}

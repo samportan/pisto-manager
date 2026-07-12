@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { useStockAdjustment, useStockMovements } from "@/hooks/useStockMovements";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import type { NewProduct, Product } from "@/lib/db/products";
 import type { StockAdjustmentReason } from "@/lib/db/stock-movements";
 import type { UnitOfMeasure } from "@/lib/uom";
@@ -46,6 +47,7 @@ type Props = {
 
 export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubmitting }: Props) {
   const { t, intlLocale } = useT();
+  const toast = useAppToast();
   const { movements, isLoading: movementsLoading } = useStockMovements(product?.id ?? null);
   const { adjustStock, isAdjusting } = useStockAdjustment();
 
@@ -60,7 +62,6 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
   const [adjustReason, setAdjustReason] =
     React.useState<StockAdjustmentReason>("count_correction");
   const [adjustNotes, setAdjustNotes] = React.useState("");
-  const [adjustErr, setAdjustErr] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open || !product) return;
@@ -74,7 +75,6 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
     setAdjustQty("");
     setAdjustReason("count_correction");
     setAdjustNotes("");
-    setAdjustErr(null);
   }, [open, product]);
 
   const currentStock = product ? Number(product.stock) : 0;
@@ -103,11 +103,11 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
   async function handleAdjustment(e: React.FormEvent) {
     e.preventDefault();
     if (!product) return;
-    setAdjustErr(null);
     try {
       const delta = Number(adjustQty);
       if (!delta || delta === 0) {
-        throw new Error(t("business.errorQtyPositive"));
+        toast.error("business.errorQtyPositive");
+        return;
       }
       await adjustStock({
         product_id: product.id,
@@ -118,7 +118,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
       setAdjustQty("");
       setAdjustNotes("");
     } catch (err) {
-      setAdjustErr(err instanceof Error ? err.message : t("common.errorSave"));
+      toast.errorFrom(err);
     }
   }
 
@@ -237,11 +237,6 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
                   </span>
                 </p>
               </div>
-              {adjustErr ? (
-                <p className="text-sm text-destructive" role="alert">
-                  {adjustErr}
-                </p>
-              ) : null}
               <div className="space-y-2">
                 <Label htmlFor="ep-adjust-qty">{t("business.adjustmentQty")}</Label>
                 <Input

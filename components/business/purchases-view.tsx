@@ -39,6 +39,7 @@ import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { usePurchasePayments } from "@/hooks/usePurchasePayments";
 import { purchasesKeys, useDeletePurchase, usePurchasesPaginated } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildPurchasesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import {
@@ -349,6 +350,7 @@ function PurchaseDetailBody({
 
 export function PurchasesView() {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const queryClient = useQueryClient();
   const { deletePurchase, isDeleting } = useDeletePurchase();
@@ -809,8 +811,12 @@ export function PurchasesView() {
         variant="destructive"
         isPending={isDeleting}
         onConfirm={async () => {
-          if (deleteId) await deletePurchase(deleteId);
+          if (deleteId) {
+            await deletePurchase(deleteId);
+            toast.success("toast.purchaseDeleted");
+          }
         }}
+        onError={(err) => toast.errorFrom(err, "delete")}
       />
     </div>
   );

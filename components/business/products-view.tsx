@@ -15,12 +15,14 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { useProducts } from "@/hooks/useProducts";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildProductsWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { Product } from "@/lib/db/products";
 
 export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
     useProducts();
@@ -28,7 +30,6 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const [editProduct, setEditProduct] = React.useState<Product | null>(null);
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [formError, setFormError] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState(false);
 
   const columns = React.useMemo<ColumnDef<Product>[]>(
@@ -157,12 +158,6 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
           }
         />
 
-        {formError ? (
-          <p className="mb-4 text-sm text-destructive" role="alert">
-            {formError}
-          </p>
-        ) : null}
-
         <div className="relative mb-6">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -193,11 +188,12 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
         isSubmitting={isUpdating}
         onSubmit={async (values) => {
           if (!editProduct) return;
-          setFormError(null);
           try {
             await updateProduct({ id: editProduct.id, patch: values });
+            toast.success("toast.productUpdated");
+            setEditProduct(null);
           } catch (e) {
-            setFormError(e instanceof Error ? e.message : t("common.errorSave"));
+            toast.errorFrom(e);
             throw e;
           }
         }}
@@ -208,11 +204,12 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
         onOpenChange={setSheetOpen}
         isSubmitting={isCreating}
         onSubmit={async (values) => {
-          setFormError(null);
           try {
             await createProduct(values);
+            toast.success("toast.productSaved");
+            setSheetOpen(false);
           } catch (e) {
-            setFormError(e instanceof Error ? e.message : t("common.errorSave"));
+            toast.errorFrom(e);
             throw e;
           }
         }}
@@ -230,8 +227,12 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
         variant="destructive"
         isPending={isDeleting}
         onConfirm={async () => {
-          if (deleteId) await deleteProduct(deleteId);
+          if (deleteId) {
+            await deleteProduct(deleteId);
+            toast.success("toast.productDeleted");
+          }
         }}
+        onError={(err) => toast.errorFrom(err, "delete")}
       />
     </div>
   );

@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useContacts } from "@/hooks/useContacts";
 import { useCustomerBalances } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import type { Contact } from "@/lib/db/contacts";
 import { formatMoneyDisplay } from "@/lib/format-money";
 
@@ -28,6 +29,7 @@ function typeVariant(t: Contact["type"]): "secondary" | "outline" | "accent" {
 
 export function ContactsView() {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { contacts, createContact, updateContact, deleteContact, isCreating, isUpdating, isDeleting, isLoading } =
     useContacts();
@@ -36,7 +38,6 @@ export function ContactsView() {
   const [editContact, setEditContact] = React.useState<Contact | null>(null);
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [formError, setFormError] = React.useState<string | null>(null);
 
   const contactTypeLabel = React.useCallback(
     (type: Contact["type"]) => {
@@ -138,12 +139,6 @@ export function ContactsView() {
           }
         />
 
-        {formError ? (
-          <p className="mb-4 text-sm text-destructive" role="alert">
-            {formError}
-          </p>
-        ) : null}
-
         <div className="mb-6 space-y-1.5">
           <label
             htmlFor="contacts-search"
@@ -183,11 +178,12 @@ export function ContactsView() {
         isSubmitting={isUpdating}
         onSubmit={async (values) => {
           if (!editContact) return;
-          setFormError(null);
           try {
             await updateContact({ id: editContact.id, patch: values });
+            toast.success("toast.contactUpdated");
+            setEditContact(null);
           } catch (e) {
-            setFormError(e instanceof Error ? e.message : t("common.errorSave"));
+            toast.errorFrom(e);
             throw e;
           }
         }}
@@ -198,11 +194,12 @@ export function ContactsView() {
         onOpenChange={setSheetOpen}
         isSubmitting={isCreating}
         onSubmit={async (values) => {
-          setFormError(null);
           try {
             await createContact(values);
+            toast.success("toast.contactSaved");
+            setSheetOpen(false);
           } catch (e) {
-            setFormError(e instanceof Error ? e.message : t("common.errorSave"));
+            toast.errorFrom(e);
             throw e;
           }
         }}
@@ -220,8 +217,12 @@ export function ContactsView() {
         variant="destructive"
         isPending={isDeleting}
         onConfirm={async () => {
-          if (deleteId) await deleteContact(deleteId);
+          if (deleteId) {
+            await deleteContact(deleteId);
+            toast.success("toast.contactDeleted");
+          }
         }}
+        onError={(err) => toast.errorFrom(err, "delete")}
       />
     </div>
   );

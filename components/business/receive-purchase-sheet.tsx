@@ -30,6 +30,7 @@ import {
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { useReceivePurchase } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import type { PurchaseItemRow } from "@/lib/db/purchase-items";
 import type { PurchaseLineInput, PurchasePaymentMethod, PurchaseWithMeta } from "@/lib/db/purchases";
 import { formatMoneyDisplay } from "@/lib/format-money";
@@ -71,6 +72,7 @@ export function ReceivePurchaseSheet({
   onSuccess,
 }: Props) {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { data: existingLines, isLoading } = usePurchaseItems(purchase?.id ?? null);
   const { receivePurchase, isReceiving } = useReceivePurchase();
@@ -83,7 +85,6 @@ export function ReceivePurchaseSheet({
   const [feesNotes, setFeesNotes] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [lines, setLines] = React.useState<ReceiveLine[]>([]);
-  const [error, setError] = React.useState<string | null>(null);
 
   const productById = React.useMemo(() => {
     const m = new Map<string, Product>();
@@ -102,7 +103,6 @@ export function ReceivePurchaseSheet({
     );
     setFeesNotes(purchase.fees_notes ?? "");
     setNotes(purchase.notes ?? "");
-    setError(null);
   }, [open, purchase]);
 
   React.useEffect(() => {
@@ -161,7 +161,6 @@ export function ReceivePurchaseSheet({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!purchase) return;
-    setError(null);
     try {
       if (collectionMode === "partial") {
         const paid = moneyInputToNumber(partialAmount);
@@ -184,10 +183,11 @@ export function ReceivePurchaseSheet({
         fees_notes: feesNotes.trim() || null,
         items,
       });
+      toast.success("toast.purchaseReceived");
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.errorSave"));
+      toast.errorFrom(err);
     }
   }
 
@@ -216,12 +216,6 @@ export function ReceivePurchaseSheet({
           </div>
         ) : (
           <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 px-4 py-4">
-            {error ? (
-              <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {error}
-              </p>
-            ) : null}
-
             <div className="space-y-2">
               <Label htmlFor="receive-date">{t("business.receivedDate")}</Label>
               <Input

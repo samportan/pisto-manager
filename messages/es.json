@@ -443,5 +443,31 @@
     "required": "Campo obligatorio",
     "noRows": "Sin filas.",
     "noMatches": "Sin coincidencias."
+  },
+  "toast": {
+    "saleSaved": "Venta guardada con éxito.",
+    "saleDeleted": "Venta eliminada.",
+    "paymentRecorded": "Abono registrado.",
+    "purchaseSaved": "Compra guardada con éxito.",
+    "purchaseReceived": "Compra recibida y stock actualizado.",
+    "purchaseUpdated": "Compra actualizada.",
+    "purchaseDeleted": "Compra eliminada.",
+    "purchasePaymentRecorded": "Pago a proveedor registrado.",
+    "productSaved": "Producto creado.",
+    "productUpdated": "Producto actualizado.",
+    "productDeleted": "Producto eliminado.",
+    "contactSaved": "Contacto creado.",
+    "contactUpdated": "Contacto actualizado.",
+    "contactDeleted": "Contacto eliminado.",
+    "exportReady": "Archivo Excel descargado.",
+    "errorInsufficientStockRpc": "Stock insuficiente. Otro usuario pudo haber vendido el mismo producto.",
+    "errorDeleteSaleBalance": "No se puede eliminar una venta con saldo pendiente.",
+    "errorDeleteSalePayments": "No se puede eliminar una venta con abonos registrados.",
+    "errorDeletePurchaseBalance": "No se puede eliminar una compra con saldo pendiente.",
+    "errorDeletePurchasePayments": "No se puede eliminar una compra con pagos registrados.",
+    "errorNotAuthenticated": "Debes iniciar sesión para continuar.",
+    "errorNoOrgAccess": "No tienes acceso a esta organización.",
+    "errorProductNotFound": "Producto no encontrado o eliminado.",
+    "errorForbidden": "No tienes permiso para esta acción."
   }
 }

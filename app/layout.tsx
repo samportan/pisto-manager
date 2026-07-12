@@ -6,6 +6,7 @@ import { I18nRoot } from "@/components/i18n-root";
 import { QueryProvider } from "@/components/query-provider";
 import { SupabaseConnectionLogger } from "@/components/supabase-connection-logger";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   defaultLocale,
@@ -78,6 +79,7 @@ export default async function RootLayout({
               <TooltipProvider>
                 <SupabaseConnectionLogger />
                 {children}
+                <Toaster richColors closeButton />
               </TooltipProvider>
             </I18nRoot>
           </QueryProvider>

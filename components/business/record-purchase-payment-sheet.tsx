@@ -18,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useRecordPurchasePayment } from "@/hooks/usePurchasePayments";
 import { useT } from "@/hooks/useTranslations";
+import { useAppToast } from "@/hooks/useAppToast";
 import type { PurchasePaymentMethod, PurchaseWithMeta } from "@/lib/db/purchases";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
@@ -36,6 +37,7 @@ export function RecordPurchasePaymentSheet({
   onSuccess,
 }: Props) {
   const { t, intlLocale, currency } = useT();
+  const toast = useAppToast();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { recordPayment, isRecording } = useRecordPurchasePayment();
 
@@ -43,7 +45,6 @@ export function RecordPurchasePaymentSheet({
   const [paymentMethod, setPaymentMethod] = React.useState<PurchasePaymentMethod>("cash");
   const [dateLocal, setDateLocal] = React.useState(() => toDatetimeLocalValue(new Date()));
   const [notes, setNotes] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (open && purchase) {
@@ -51,21 +52,19 @@ export function RecordPurchasePaymentSheet({
       setPaymentMethod("cash");
       setDateLocal(toDatetimeLocalValue(new Date()));
       setNotes("");
-      setError(null);
     }
   }, [open, purchase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!purchase) return;
-    setError(null);
     const parsed = moneyInputToNumber(amount);
     if (parsed <= 0) {
-      setError(t("business.errorPaymentAmount"));
+      toast.error("business.errorPaymentAmount");
       return;
     }
     if (parsed > Number(purchase.balance_due)) {
-      setError(t("business.errorPaymentExceedsBalance"));
+      toast.error("business.errorPaymentExceedsBalance");
       return;
     }
     try {
@@ -76,10 +75,11 @@ export function RecordPurchasePaymentSheet({
         date: new Date(dateLocal).toISOString(),
         notes: notes.trim() || null,
       });
+      toast.success("toast.purchasePaymentRecorded");
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.errorSave"));
+      toast.errorFrom(err);
     }
   }
 
@@ -97,11 +97,6 @@ export function RecordPurchasePaymentSheet({
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4 px-4 py-4">
-          {error ? (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
           <div className="space-y-2">
             <Label htmlFor="purchase-payment-amount">{t("business.paymentAmount")}</Label>
             <MoneyInput

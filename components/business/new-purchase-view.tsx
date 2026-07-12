@@ -7,9 +7,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
 import { useProducts } from "@/hooks/useProducts";
 import { usePurchases } from "@/hooks/usePurchases";
+import { useAppToast } from "@/hooks/useAppToast";
 
 export function NewPurchaseView() {
   const router = useRouter();
+  const toast = useAppToast();
   const { createPurchaseWithItems, isCreating } = usePurchases();
   const { contacts, isLoading: contactsLoading } = useContacts();
   const { products, isLoading: productsLoading } = useProducts();
@@ -36,6 +38,7 @@ export function NewPurchaseView() {
       onCancel={() => router.push("/dashboard/business/purchases")}
       onSubmit={async (payload) => {
         await createPurchaseWithItems(payload);
+        toast.success("toast.purchaseSaved");
         router.push("/dashboard/business/purchases");
       }}
     />
