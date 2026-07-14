@@ -1,7 +1,11 @@
 import type { PaymentMethod, SaleWithMeta } from "@/lib/db/sales";
 import type { SalePayment } from "@/lib/db/sale-payments";
 import type { ProductInsightSaleItem } from "@/lib/db/product-insights";
-import { filterByPeriod, type InsightsPeriod } from "@/lib/analytics/shared";
+import {
+  filterByPeriod,
+  filterFullyPaidSales,
+  type InsightsPeriod,
+} from "@/lib/analytics/shared";
 import { sumMoney } from "@/lib/money";
 import { toZonedDateString } from "@/lib/timezone";
 
@@ -42,7 +46,7 @@ export function filterSalesByPeriod(
   period: InsightsPeriod,
   now = new Date()
 ): SaleWithMeta[] {
-  return filterByPeriod(sales, period, (s) => s.date, now);
+  return filterFullyPaidSales(filterByPeriod(sales, period, (s) => s.date, now));
 }
 
 export function filterPaymentsByPeriod(

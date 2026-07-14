@@ -7,6 +7,7 @@ export type ProductInsightSaleItem = {
   line_total: number;
   sale_id: string;
   sale_date: string;
+  payment_status: "paid" | "partial" | "credit";
   product_name: string | null;
   cost_price: number | null;
   stock: number | null;
@@ -25,6 +26,7 @@ type SaleItemRow = {
     date: string;
     organization_id: string;
     deleted_at: string | null;
+    payment_status: "paid" | "partial" | "credit" | null;
   };
   products: {
     name: string;
@@ -43,7 +45,7 @@ export async function getSaleItemsForInsightsByOrgId(
   const { data, error } = await supabase
     .from("sale_items")
     .select(
-      "id, product_id, quantity, line_total, sale_id, sales!inner(date, organization_id, deleted_at), products(name, cost_price, stock, min_stock, is_active, deleted_at)"
+      "id, product_id, quantity, line_total, sale_id, sales!inner(date, organization_id, deleted_at, payment_status), products(name, cost_price, stock, min_stock, is_active, deleted_at)"
     )
     .eq("sales.organization_id", orgId)
     .is("deleted_at", null)
@@ -59,6 +61,7 @@ export async function getSaleItemsForInsightsByOrgId(
     line_total: Number(row.line_total),
     sale_id: row.sale_id,
     sale_date: row.sales.date,
+    payment_status: row.sales.payment_status ?? "paid",
     product_name: row.products?.name ?? null,
     cost_price: row.products ? Number(row.products.cost_price) : null,
     stock: row.products ? Number(row.products.stock) : null,
