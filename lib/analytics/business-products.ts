@@ -1,6 +1,10 @@
 import type { ProductInsightSaleItem } from "@/lib/db/product-insights";
 import type { Product } from "@/lib/db/products";
-import { filterByPeriod, type InsightsPeriod } from "@/lib/analytics/shared";
+import {
+  filterByPeriod,
+  filterFullyPaidSales,
+  type InsightsPeriod,
+} from "@/lib/analytics/shared";
 
 export type { InsightsPeriod } from "@/lib/analytics/shared";
 
@@ -28,7 +32,7 @@ export function filterSaleItemsByPeriod(
   period: InsightsPeriod,
   now = new Date()
 ): ProductInsightSaleItem[] {
-  return filterByPeriod(items, period, (item) => item.sale_date, now);
+  return filterFullyPaidSales(filterByPeriod(items, period, (item) => item.sale_date, now));
 }
 
 export function getInventoryKpis(products: Product[]): InventoryKpis {
