@@ -8,6 +8,7 @@ import {
   HorizontalBarChart,
 } from "@/components/business/business-overview-charts";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
+import { Badge } from "@/components/ui/badge";
 import { useProductInsights } from "@/hooks/useProductInsights";
 import { useProducts } from "@/hooks/useProducts";
 import { usePurchases } from "@/hooks/usePurchases";
@@ -19,7 +20,11 @@ import {
   getTopProductsByRevenue,
 } from "@/lib/analytics/business-products";
 import { formatMoneyDisplay } from "@/lib/format-money";
+import { getLowStockProducts, isOutOfStock } from "@/lib/stock";
 import { getZonedParts } from "@/lib/timezone";
+import { cn } from "@/lib/utils";
+
+const LOW_STOCK_PREVIEW = 8;
 
 export function BusinessOverview() {
   const { t, intlLocale, currency } = useT();
@@ -33,13 +38,12 @@ export function BusinessOverview() {
   const stats = useMemo(() => {
     const { year, month } = getZonedParts(new Date());
     const totals = getMonthBusinessTotals(sales, purchases, year, month);
-    const lowStock = products.filter(
-      (p) => (p.min_stock ?? 0) > 0 && p.stock <= (p.min_stock ?? 0)
-    ).length;
+    const lowStockProducts = getLowStockProducts(products);
     return {
       revenue: totals.revenue,
       expense: totals.purchases,
-      lowStock,
+      lowStock: lowStockProducts.length,
+      lowStockProducts,
       margin: totals.margin,
     };
   }, [products, purchases, sales]);
@@ -56,6 +60,9 @@ export function BusinessOverview() {
       total: item.revenue,
     }));
   }, [saleItems, products]);
+
+  const lowStockPreview = stats.lowStockProducts.slice(0, LOW_STOCK_PREVIEW);
+  const lowStockHref = "/dashboard/business/products?stock=low";
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
@@ -74,10 +81,80 @@ export function BusinessOverview() {
             <StatCard title={t("business.revenue")} value={fmt(stats.revenue)} />
             <StatCard title={t("business.purchases")} value={fmt(stats.expense)} />
             <StatCard title={t("business.grossMargin")} value={fmt(stats.margin)} />
-            <StatCard title={t("business.lowStockItems")} value={String(stats.lowStock)} />
+            <Link href={lowStockHref} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <article
+                className={cn(
+                  "h-full rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30",
+                  stats.lowStock > 0 ? "border-destructive/40" : "border-border"
+                )}
+              >
+                <p
+                  className={cn(
+                    "text-xs font-semibold uppercase tracking-wide",
+                    stats.lowStock > 0 ? "text-destructive" : "text-muted-foreground"
+                  )}
+                >
+                  {t("business.lowStockItems")}
+                </p>
+                <p
+                  className={cn(
+                    "mt-2 text-2xl font-bold tabular-nums",
+                    stats.lowStock > 0 && "text-destructive"
+                  )}
+                >
+                  {String(stats.lowStock)}
+                </p>
+              </article>
+            </Link>
           </>
         )}
       </div>
+
+      {!isLoading && stats.lowStock > 0 ? (
+        <section className="mt-6 rounded-xl border border-destructive/30 bg-card p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-destructive">
+                {t("business.lowStockAlertTitle")}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("business.lowStockAlertSubtitle")}
+              </p>
+            </div>
+            <Link
+              href={lowStockHref}
+              className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+            >
+              {t("business.lowStockViewAll")}
+            </Link>
+          </div>
+          <ul className="mt-4 divide-y divide-border">
+            {lowStockPreview.map((product) => {
+              const out = isOutOfStock(product);
+              return (
+                <li
+                  key={product.id}
+                  className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{product.name}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {t("business.stockVsMin", {
+                        stock: product.stock,
+                        min: product.min_stock ?? 0,
+                      })}{" "}
+                      {t(`business.uom.${product.unit_of_measure ?? "unit"}`)}
+                    </p>
+                  </div>
+                  <Badge variant="destructive" className="shrink-0 text-[0.65rem]">
+                    {out ? t("business.outOfStock") : t("business.low")}
+                  </Badge>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4">

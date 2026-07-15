@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/sheet";
 import { useT } from "@/hooks/useTranslations";
 import type { NewProduct } from "@/lib/db/products";
+import { formatMoneyDisplay } from "@/lib/format-money";
+import { formatMoneyInputValue } from "@/lib/money";
+import { suggestedSalePrice, TARGET_CONTRIBUTION_MARGIN } from "@/lib/pricing";
 import type { UnitOfMeasure } from "@/lib/uom";
 
 type ProductFormValues = Omit<NewProduct, "user_id" | "organization_id">;
@@ -30,21 +33,30 @@ type Props = {
 };
 
 export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: Props) {
-  const { t } = useT();
+  const { t, intlLocale, currency } = useT();
   const [name, setName] = React.useState("");
   const [sku, setSku] = React.useState("");
   const [salePrice, setSalePrice] = React.useState("");
+  const [salePriceTouched, setSalePriceTouched] = React.useState(false);
   const [costPrice, setCostPrice] = React.useState("");
   const [stock, setStock] = React.useState("");
   const [minStock, setMinStock] = React.useState("");
   const [unitOfMeasure, setUnitOfMeasure] = React.useState<UnitOfMeasure>("unit");
   const [isActive, setIsActive] = React.useState(true);
 
+  const costNumber = moneyInputToNumber(costPrice);
+  const suggested = suggestedSalePrice(costNumber);
+  const suggestedLabel =
+    suggested > 0
+      ? formatMoneyDisplay(suggested, { currency, locale: intlLocale })
+      : null;
+
   React.useEffect(() => {
     if (!open) return;
     setName("");
     setSku("");
     setSalePrice("");
+    setSalePriceTouched(false);
     setCostPrice("");
     setStock("");
     setMinStock("");
@@ -52,14 +64,32 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
     setIsActive(true);
   }, [open]);
 
+  function handleCostChange(value: string) {
+    setCostPrice(value);
+    if (salePriceTouched) return;
+    const cost = moneyInputToNumber(value);
+    const next = suggestedSalePrice(cost);
+    setSalePrice(next > 0 ? formatMoneyInputValue(next) : "");
+  }
+
+  function handleSaleChange(value: string) {
+    setSalePriceTouched(true);
+    setSalePrice(value);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
+      const cost = moneyInputToNumber(costPrice);
+      let sale = moneyInputToNumber(salePrice);
+      if (sale === 0 && cost > 0) {
+        sale = suggestedSalePrice(cost);
+      }
       await onSubmit({
         name: name.trim(),
         sku: sku.trim() || null,
-        sale_price: moneyInputToNumber(salePrice),
-        cost_price: moneyInputToNumber(costPrice),
+        sale_price: sale,
+        cost_price: cost,
         stock: Number(stock) || 0,
         min_stock: Number(minStock) || 0,
         unit_of_measure: unitOfMeasure,
@@ -121,22 +151,30 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="p-sale">{t("business.salePrice")}</Label>
-                  <MoneyInput
-                    id="p-sale"
-                    value={salePrice}
-                    onChange={setSalePrice}
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="p-cost">{t("business.costPrice")}</Label>
                   <MoneyInput
                     id="p-cost"
                     value={costPrice}
-                    onChange={setCostPrice}
+                    onChange={handleCostChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="p-sale">{t("business.salePrice")}</Label>
+                  <MoneyInput
+                    id="p-sale"
+                    value={salePrice}
+                    onChange={handleSaleChange}
                   />
                 </div>
               </div>
+              {suggestedLabel ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("business.suggestedSalePriceHint", {
+                    percent: Math.round(TARGET_CONTRIBUTION_MARGIN * 100),
+                    amount: suggestedLabel,
+                  })}
+                </p>
+              ) : null}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="p-stock">{t("business.stockOnHand")}</Label>
@@ -163,6 +201,7 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
                   />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground">{t("business.minStockAlertHint")}</p>
               <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                 <input
                   type="checkbox"

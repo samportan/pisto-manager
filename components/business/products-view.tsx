@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Pencil, Search, Trash2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 import { AddProductSheet } from "@/components/business/add-product-sheet";
 import { EditProductSheet } from "@/components/business/edit-product-sheet";
@@ -19,18 +20,40 @@ import { useAppToast } from "@/hooks/useAppToast";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildProductsWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { Product } from "@/lib/db/products";
+import { isLowStock, isOutOfStock, stockUrgency } from "@/lib/stock";
+import { cn } from "@/lib/utils";
 
 export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { t, intlLocale, currency } = useT();
   const toast = useAppToast();
+  const searchParams = useSearchParams();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
     useProducts();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<Product | null>(null);
   const [search, setSearch] = React.useState("");
+  const [lowStockOnly, setLowStockOnly] = React.useState(
+    () => searchParams.get("stock") === "low"
+  );
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (searchParams.get("stock") === "low") {
+      setLowStockOnly(true);
+    }
+  }, [searchParams]);
+
+  const tableData = React.useMemo(() => {
+    const filtered = lowStockOnly ? products.filter(isLowStock) : products;
+    if (!lowStockOnly) return filtered;
+    return filtered.slice().sort((a, b) => {
+      const urgencyDiff = stockUrgency(a) - stockUrgency(b);
+      if (urgencyDiff !== 0) return urgencyDiff;
+      return a.name.localeCompare(b.name);
+    });
+  }, [products, lowStockOnly]);
 
   const columns = React.useMemo<ColumnDef<Product>[]>(
     () => [
@@ -68,9 +91,8 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
         accessorKey: "stock",
         header: t("business.stock"),
         cell: ({ row }) => {
-          const low =
-            (row.original.min_stock ?? 0) > 0 &&
-            Number(row.original.stock) <= Number(row.original.min_stock ?? 0);
+          const out = isOutOfStock(row.original);
+          const low = isLowStock(row.original);
           return (
             <div className="flex items-center gap-2">
               <span className="tabular-nums font-medium">
@@ -79,7 +101,11 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
                   {t(`business.uom.${row.original.unit_of_measure ?? "unit"}`)}
                 </span>
               </span>
-              {low ? (
+              {out ? (
+                <Badge variant="destructive" className="text-[0.65rem]">
+                  {t("business.outOfStock")}
+                </Badge>
+              ) : low ? (
                 <Badge variant="destructive" className="text-[0.65rem]">
                   {t("business.low")}
                 </Badge>
@@ -158,26 +184,42 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
           }
         />
 
-        <div className="relative mb-6">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            type="search"
-            placeholder={t("business.searchProducts")}
-            className="h-10 pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              placeholder={t("business.searchProducts")}
+              className="h-10 pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={lowStockOnly ? "secondary" : "outline"}
+            className={cn(lowStockOnly && "border-destructive/40 text-destructive")}
+            onClick={() => setLowStockOnly((v) => !v)}
+            aria-pressed={lowStockOnly}
+          >
+            {t("business.filterLowStock")}
+          </Button>
         </div>
 
         <DataTable
-          data={products}
+          data={tableData}
           columns={columns}
           globalFilter={search}
           isLoading={isLoading}
-          emptyLabel={t("business.noProducts")}
+          emptyLabel={
+            lowStockOnly && !search
+              ? t("business.lowStockEmpty")
+              : t("business.noProducts")
+          }
         />
       </div>
 

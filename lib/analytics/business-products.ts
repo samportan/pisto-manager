@@ -5,6 +5,7 @@ import {
   filterFullyPaidSales,
   type InsightsPeriod,
 } from "@/lib/analytics/shared";
+import { isLowStock, isOutOfStock } from "@/lib/stock";
 
 export type { InsightsPeriod } from "@/lib/analytics/shared";
 
@@ -25,6 +26,7 @@ export type ProductSalesRank = {
   estimatedMargin: number;
   stock: number;
   lowStock: boolean;
+  outOfStock: boolean;
 };
 
 export function filterSaleItemsByPeriod(
@@ -49,8 +51,8 @@ export function getInventoryKpis(products: Product[]): InventoryKpis {
     inventoryValueCost += stock * cost;
     inventoryValueRetail += stock * retail;
     if (p.is_active) activeProducts += 1;
-    if (stock <= 0) outOfStockCount += 1;
-    if ((p.min_stock ?? 0) > 0 && stock <= (p.min_stock ?? 0)) lowStockCount += 1;
+    if (isOutOfStock(p)) outOfStockCount += 1;
+    if (isLowStock(p)) lowStockCount += 1;
   }
 
   return {
@@ -98,7 +100,6 @@ export function getProductSalesRanking(
     .map(([productId, stats]) => {
       const product = productMap.get(productId);
       const stock = product ? Number(product.stock) : 0;
-      const minStock = product?.min_stock ?? 0;
       return {
         productId,
         productName: stats.name,
@@ -106,7 +107,8 @@ export function getProductSalesRanking(
         revenue: stats.revenue,
         estimatedMargin: stats.estimatedMargin,
         stock,
-        lowStock: minStock > 0 && stock <= minStock,
+        lowStock: product ? isLowStock(product) : false,
+        outOfStock: product ? isOutOfStock(product) : stock <= 0,
       };
     })
     .sort((a, b) => b.revenue - a.revenue);
