@@ -10,14 +10,17 @@ export type HasPaymentStatus = {
   payment_status?: string | null;
 };
 
-/** Revenue/KPI helpers only count sales collected in full (excludes fiado/partial). */
-export function isFullyPaidSale(sale: HasPaymentStatus): boolean {
-  return (sale.payment_status ?? "paid") === "paid";
+/** KPI helpers only count docs paid in full (excludes credit/partial). */
+export function isFullyPaid(doc: HasPaymentStatus): boolean {
+  return (doc.payment_status ?? "paid") === "paid";
 }
 
-export function filterFullyPaidSales<T extends HasPaymentStatus>(sales: T[]): T[] {
-  return sales.filter(isFullyPaidSale);
+export function filterFullyPaid<T extends HasPaymentStatus>(items: T[]): T[] {
+  return items.filter(isFullyPaid);
 }
+
+export const isFullyPaidSale = isFullyPaid;
+export const filterFullyPaidSales = filterFullyPaid;
 
 export function filterByPeriod<T>(
   items: T[],

@@ -1,4 +1,4 @@
-import { filterFullyPaidSales } from "@/lib/analytics/shared";
+import { filterFullyPaid } from "@/lib/analytics/shared";
 import type { Purchase } from "@/lib/db/purchases";
 import type { Sale } from "@/lib/db/sales";
 import { getZonedParts } from "@/lib/timezone";
@@ -25,10 +25,10 @@ export function getMonthBusinessTotals(
   year: number,
   month: number
 ): BusinessMonthTotals {
-  const revenue = filterFullyPaidSales(sales)
+  const revenue = filterFullyPaid(sales)
     .filter((s) => docInMonth(s.date, year, month))
     .reduce((sum, s) => sum + Number(s.total ?? 0), 0);
-  const expense = purchases
+  const expense = filterFullyPaid(purchases)
     .filter((p) => (p.receipt_status ?? "received") === "received")
     .filter((p) => docInMonth(p.date, year, month))
     .reduce((sum, p) => sum + Number(p.total ?? 0), 0);
