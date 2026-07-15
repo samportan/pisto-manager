@@ -106,7 +106,11 @@ export function ProductInsightsView() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <span className="tabular-nums">{row.original.stock}</span>
-            {row.original.lowStock ? (
+            {row.original.outOfStock ? (
+              <Badge variant="destructive" className="text-[0.65rem]">
+                {t("business.outOfStock")}
+              </Badge>
+            ) : row.original.lowStock ? (
               <Badge variant="destructive" className="text-[0.65rem]">
                 {t("business.low")}
               </Badge>
