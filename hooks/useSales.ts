@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createSaleWithItems,
   getCustomerBalances,
+  getOpenSalesByCustomer,
   getSalesByOrgId,
   listSalesPaginated,
   softDeleteSale,
@@ -59,6 +60,25 @@ export function useCustomerBalances() {
   return {
     balances: query.data ?? [],
     balanceByCustomer: new Map((query.data ?? []).map((b) => [b.customer_id, b])),
+    isLoading: query.isPending && !query.data,
+  };
+}
+
+export function useOpenSalesByCustomer(customerId: string | null) {
+  const { userId, sessionReady } = useAuthUserId();
+  const orgId = useSalesOrgId();
+
+  const query = useQuery({
+    queryKey:
+      orgId && customerId
+        ? salePaymentKeys.openByCustomer(orgId, customerId)
+        : ["open-sales", "idle"],
+    queryFn: () => getOpenSalesByCustomer(orgId!, customerId!),
+    enabled: sessionReady && !!userId && !!orgId && !!customerId,
+  });
+
+  return {
+    sales: query.data ?? [],
     isLoading: query.isPending && !query.data,
   };
 }

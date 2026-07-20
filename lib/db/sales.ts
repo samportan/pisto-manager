@@ -209,6 +209,37 @@ export async function getCustomerBalances(orgId: string): Promise<CustomerBalanc
   return [...byCustomer.values()];
 }
 
+export type OpenCustomerSale = Pick<
+  Sale,
+  "id" | "date" | "total" | "amount_paid" | "balance_due" | "payment_status" | "notes"
+>;
+
+export async function getOpenSalesByCustomer(
+  orgId: string,
+  customerId: string
+): Promise<OpenCustomerSale[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("sales")
+    .select("id, date, total, amount_paid, balance_due, payment_status, notes")
+    .eq("organization_id", orgId)
+    .eq("customer_id", customerId)
+    .is("deleted_at", null)
+    .neq("payment_status", "paid")
+    .order("date", { ascending: true })
+    .order("id", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const r = row as OpenCustomerSale;
+    return {
+      ...r,
+      total: Number(r.total),
+      amount_paid: Number(r.amount_paid),
+      balance_due: Number(r.balance_due),
+    };
+  });
+}
+
 export async function createSale(payload: NewSale): Promise<Sale> {
   const supabase = createClient();
   const { data, error } = await supabase

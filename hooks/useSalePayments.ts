@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSalePaymentsByOrgId,
   getSalePaymentsBySaleId,
+  recordCustomerPayment,
   recordSalePayment,
 } from "@/lib/db/sale-payments";
 import type { PaymentMethod } from "@/lib/db/sales";
@@ -14,6 +15,8 @@ export const salePaymentKeys = {
   bySale: (saleId: string) => ["sale-payments", saleId] as const,
   byOrg: (orgId: string, dateFrom?: string, dateTo?: string) =>
     ["sale-payments", "org", orgId, dateFrom, dateTo] as const,
+  openByCustomer: (orgId: string, customerId: string) =>
+    ["open-sales", orgId, customerId] as const,
 };
 
 function useSalePaymentsOrgId() {
@@ -79,6 +82,42 @@ export function useRecordSalePayment() {
 
   return {
     recordPayment: mutation.mutateAsync,
+    isRecording: mutation.isPending,
+  };
+}
+
+export function useRecordCustomerPayment() {
+  const queryClient = useQueryClient();
+  const orgId = useSalePaymentsOrgId();
+
+  const mutation = useMutation({
+    mutationFn: async (args: {
+      customer_id: string;
+      amount: number;
+      payment_method: PaymentMethod;
+      date?: string;
+      notes?: string | null;
+    }) => {
+      if (!orgId) throw new Error("Must select a business organization.");
+      return recordCustomerPayment({ ...args, organization_id: orgId });
+    },
+    onSuccess: async (result) => {
+      if (!orgId) return;
+      void queryClient.invalidateQueries({ queryKey: ["sales", orgId] });
+      void queryClient.invalidateQueries({ queryKey: ["customer-balances", orgId] });
+      void queryClient.invalidateQueries({
+        queryKey: salePaymentKeys.openByCustomer(orgId, result.customer_id),
+      });
+      for (const alloc of result.allocations) {
+        void queryClient.invalidateQueries({
+          queryKey: salePaymentKeys.bySale(alloc.sale_id),
+        });
+      }
+    },
+  });
+
+  return {
+    recordCustomerPayment: mutation.mutateAsync,
     isRecording: mutation.isPending,
   };
 }

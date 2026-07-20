@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Search, Trash2 } from "lucide-react";
-
-import Link from "next/link";
+import { Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
 
 import { AddContactSheet } from "@/components/business/add-contact-sheet";
+import { CustomerDebtSheet } from "@/components/business/customer-debt-sheet";
 import { EditContactSheet } from "@/components/business/edit-contact-sheet";
 import { PageHeader } from "@/components/business/page-header";
 import { DataTable } from "@/components/business/data-table";
@@ -27,6 +26,10 @@ function typeVariant(t: Contact["type"]): "secondary" | "outline" | "accent" {
   return "accent";
 }
 
+function isCustomerContact(c: Contact): boolean {
+  return c.type === "customer" || c.type === "both";
+}
+
 export function ContactsView() {
   const { t, intlLocale, currency } = useT();
   const toast = useAppToast();
@@ -36,6 +39,7 @@ export function ContactsView() {
   const { balanceByCustomer } = useCustomerBalances();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editContact, setEditContact] = React.useState<Contact | null>(null);
+  const [debtContact, setDebtContact] = React.useState<Contact | null>(null);
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
@@ -69,16 +73,17 @@ export function ContactsView() {
         header: t("business.balanceDue"),
         cell: ({ row }) => {
           const c = row.original;
-          if (c.type === "supplier") return t("common.empty");
+          if (!isCustomerContact(c)) return t("common.empty");
           const bal = balanceByCustomer.get(c.id);
           if (!bal || bal.balance_due <= 0) return t("common.empty");
           return (
-            <Link
-              href={`/dashboard/business/sales?customer=${c.id}`}
+            <button
+              type="button"
               className="tabular-nums font-medium text-amber-600 hover:underline dark:text-amber-400"
+              onClick={() => setDebtContact(c)}
             >
               {fmt(bal.balance_due)}
-            </Link>
+            </button>
           );
         },
       },
@@ -99,27 +104,44 @@ export function ContactsView() {
       {
         id: "actions",
         header: "",
-        cell: ({ row }) => (
-          <div className="flex justify-end gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setEditContact(row.original)}
-            >
-              <Pencil className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setDeleteId(row.original.id)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const c = row.original;
+          const bal = balanceByCustomer.get(c.id);
+          const canCollect = isCustomerContact(c) && !!bal && bal.balance_due > 0;
+          return (
+            <div className="flex justify-end gap-1">
+              {canCollect ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  title={t("business.collectCustomerDebt")}
+                  aria-label={t("business.collectCustomerDebt")}
+                  onClick={() => setDebtContact(c)}
+                >
+                  <Wallet className="size-4" />
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditContact(c)}
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeleteId(c.id)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          );
+        },
       },
     ],
     [balanceByCustomer, contactTypeLabel, fmt, t]
@@ -170,6 +192,12 @@ export function ContactsView() {
           emptyLabel={t("business.noContacts")}
         />
       </div>
+
+      <CustomerDebtSheet
+        contact={debtContact}
+        open={!!debtContact}
+        onOpenChange={(o) => !o && setDebtContact(null)}
+      />
 
       <EditContactSheet
         contact={editContact}
