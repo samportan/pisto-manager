@@ -60,16 +60,23 @@ export function BarcodeScannerSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="inset-x-0 bottom-0 h-[min(100dvh,40rem)] gap-0 overflow-hidden rounded-t-2xl p-0 sm:inset-x-auto sm:right-0 sm:bottom-0 sm:h-full sm:max-w-md sm:rounded-none"
+        showCloseButton={false}
+        className={cn(
+          "gap-0 overflow-hidden p-0",
+          "inset-x-0 top-0 bottom-0 w-full rounded-none border-0",
+          "data-[side=bottom]:h-[100dvh] data-[side=bottom]:max-h-[100dvh]",
+          "sm:inset-y-0 sm:top-0 sm:right-0 sm:bottom-0 sm:left-auto sm:w-full sm:max-w-md sm:border-l",
+          "sm:data-[side=bottom]:h-full sm:data-[side=bottom]:max-h-none"
+        )}
       >
-        <SheetHeader className="relative z-10 border-b border-border bg-background/95 px-4 py-3 text-left backdrop-blur">
+        <SheetHeader className="relative z-20 shrink-0 space-y-0 border-b border-border bg-background px-4 py-3 text-left">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <SheetTitle className="flex items-center gap-2">
+            <div className="min-w-0 flex-1 space-y-0.5 pr-1">
+              <SheetTitle className="flex items-center gap-2 text-base">
                 <ScanBarcode className="size-5 shrink-0" aria-hidden />
-                {title ?? t("business.scanBarcode")}
+                <span className="truncate">{title ?? t("business.scanBarcode")}</span>
               </SheetTitle>
-              <SheetDescription>
+              <SheetDescription className="line-clamp-2 text-xs sm:text-sm">
                 {description ??
                   (continuous
                     ? t("business.scanBarcodeContinuousHint")
@@ -80,7 +87,7 @@ export function BarcodeScannerSheet({
               type="button"
               variant="ghost"
               size="icon"
-              className="shrink-0"
+              className="size-11 shrink-0 touch-manipulation sm:size-10"
               aria-label={t("common.close")}
               onClick={() => onOpenChange(false)}
             >
@@ -100,30 +107,50 @@ export function BarcodeScannerSheet({
             muted
             autoPlay
           />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8">
-            <div className="aspect-[16/10] w-full max-w-sm rounded-xl border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]" />
+
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-[8%] py-[18%] sm:px-10 sm:py-16">
+            <div
+              className={cn(
+                "relative w-full max-w-md",
+                "aspect-[3/1] max-h-[28dvh] min-h-[4.5rem] sm:max-h-[12rem]",
+                "rounded-xl border-2 border-white/85",
+                "shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
+              )}
+              aria-hidden
+            />
           </div>
 
-          <div className="relative z-10 mt-auto space-y-3 bg-gradient-to-t from-black/80 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-10 text-center text-white">
+          <div
+            className={cn(
+              "relative z-10 mt-auto space-y-3",
+              "bg-gradient-to-t from-black/90 via-black/55 to-transparent",
+              "px-4 pt-12 text-center text-white",
+              "pb-[max(1rem,env(safe-area-inset-bottom))]"
+            )}
+          >
             {status === "starting" ? (
               <p className="text-sm">{t("business.barcodeCameraStarting")}</p>
             ) : null}
-            {status === "scanning" ? (
+            {status === "scanning" && !errorMessage ? (
               <p className="text-sm text-white/90">{t("business.barcodeAimHint")}</p>
             ) : null}
             {errorMessage ? (
-              <div className="space-y-3 rounded-xl bg-background/95 p-4 text-foreground">
-                <p className="text-sm">{errorMessage}</p>
-                <Button type="button" className="w-full" onClick={() => onOpenChange(false)}>
+              <div className="space-y-3 rounded-xl bg-background/95 p-4 text-left text-foreground">
+                <p className="text-sm leading-snug">{errorMessage}</p>
+                <Button
+                  type="button"
+                  className="h-11 w-full touch-manipulation"
+                  onClick={() => onOpenChange(false)}
+                >
                   {t("common.close")}
                 </Button>
               </div>
             ) : null}
-            {continuous && status === "scanning" ? (
+            {continuous && status === "scanning" && !errorMessage ? (
               <Button
                 type="button"
                 variant="secondary"
-                className="w-full"
+                className="h-11 w-full touch-manipulation"
                 onClick={() => onOpenChange(false)}
               >
                 {t("business.scanDone")}
