@@ -60,13 +60,6 @@ export function useCameraBarcodeScan({ active, continuous = false, onScan }: Opt
       return false;
     }
     lastCodeRef.current = { code: normalized, at: now };
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try {
-        navigator.vibrate(30);
-      } catch {
-        /* ignore */
-      }
-    }
     onScanRef.current(normalized);
     return true;
   }, []);

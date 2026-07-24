@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, ScanBarcode, Trash2 } from "lucide-react";
+import { Check, Plus, ScanBarcode, Trash2 } from "lucide-react";
 
 import { DocumentFormPage } from "@/components/business/document-form-page";
 import { BarcodeScannerSheet } from "@/components/business/barcode-scanner-sheet";
@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
+import { useScanFeedback } from "@/hooks/useScanFeedback";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import { applyScanToDocumentLines } from "@/lib/barcode/apply-scan-to-lines";
@@ -96,6 +97,7 @@ export function buildPurchaseLineItems(
 export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSubmitting }: Props) {
   const { t, intlLocale, currency } = useT();
   const toast = useAppToast();
+  const { feedback: scanFeedback, showSuccess, showError } = useScanFeedback();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
 
   const [receiptMode, setReceiptMode] = React.useState<PurchaseCreateMode>("received");
@@ -131,22 +133,28 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
         priceField: "cost_price",
       });
       if (!result.ok) {
-        toast.error(
-          result.reason === "inactive"
-            ? "business.scanProductInactive"
-            : "business.scanProductNotFound"
-        );
+        showError({
+          title: t(
+            result.reason === "inactive"
+              ? "business.scanProductInactive"
+              : "business.scanProductNotFound"
+          ),
+        });
         return;
       }
       const matched = result.lines.find((row) => row.product_id === result.product.id);
       setLines(result.lines as Line[]);
       if (matched) setLastScannedKey(matched.key);
-      toast.success(
-        result.action === "added" ? "business.scanAdded" : "business.scanIncremented",
-        { name: result.product.name, qty: matched?.quantity ?? "1" }
-      );
+      const qty = matched?.quantity ?? "1";
+      showSuccess({
+        title: result.product.name,
+        subtitle:
+          result.action === "added"
+            ? t("business.scanAddedSubtitle", { qty })
+            : t("business.scanIncrementedSubtitle", { qty }),
+      });
     },
-    [pickerProducts, toast]
+    [pickerProducts, showError, showSuccess, t]
   );
 
   useHardwareBarcodeScan({
@@ -444,6 +452,29 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
         </div>
       </div>
 
+      {scanFeedback ? (
+        <div
+          className={cn(
+            "flex items-start gap-3 rounded-xl px-4 py-3 shadow-sm",
+            scanFeedback.tone === "error"
+              ? "bg-destructive text-destructive-foreground"
+              : "bg-emerald-600 text-white"
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {scanFeedback.tone !== "error" ? (
+            <Check className="mt-0.5 size-6 shrink-0" aria-hidden />
+          ) : null}
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold">{scanFeedback.title}</p>
+            {scanFeedback.subtitle ? (
+              <p className="text-sm opacity-95">{scanFeedback.subtitle}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto rounded-xl border border-border">
         <Table>
           <TableHeader>
@@ -465,7 +496,7 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
               return (
                 <TableRow
                   key={row.key}
-                  className={cn(lastScannedKey === row.key && "bg-secondary/15")}
+                  className={cn(lastScannedKey === row.key && "bg-emerald-500/15")}
                 >
                   <TableCell>
                     <ProductPicker
@@ -524,6 +555,8 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
         onOpenChange={setScannerOpen}
         onScan={handleBarcodeScan}
         continuous
+        layout="dock"
+        feedback={scanFeedback}
       />
     </>
   );

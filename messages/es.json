@@ -277,6 +277,8 @@
     "stopCounting": "Dejar de contar",
     "scanAdded": "Agregado: {name}",
     "scanIncremented": "{name} × {qty}",
+    "scanAddedSubtitle": "Agregado · cant. {qty}",
+    "scanIncrementedSubtitle": "Cantidad actualizada · {qty}",
     "scanProductNotFound": "Código no encontrado en el catálogo.",
     "scanProductInactive": "Ese producto está inactivo.",
     "scanNotOnOrder": "Ese producto no está en esta compra.",

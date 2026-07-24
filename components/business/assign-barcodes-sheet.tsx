@@ -18,6 +18,7 @@ import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
 import { useAppToast } from "@/hooks/useAppToast";
 import { useT } from "@/hooks/useTranslations";
 import { normalizeProductCode } from "@/lib/barcode/normalize";
+import { playScanErrorSound, playScanSuccessSound } from "@/lib/barcode/scan-feedback";
 import type { Product } from "@/lib/db/products";
 import { findProductByCode } from "@/lib/product-search";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,7 @@ export function AssignBarcodesSheet({
     async (code: string) => {
       const productId = selectedIdRef.current;
       if (!productId) {
+        playScanErrorSound();
         toast.error("business.assignBarcodePickFirst");
         return;
       }
@@ -92,18 +94,21 @@ export function AssignBarcodesSheet({
 
       const product = products.find((p) => p.id === productId);
       if (!product) {
+        playScanErrorSound();
         toast.error("business.assignBarcodePickFirst");
         return;
       }
 
       const taken = findProductByCode(products, normalized);
       if (taken && taken.id !== productId) {
+        playScanErrorSound();
         toast.error("business.barcodeDuplicate");
         return;
       }
 
       try {
         await onAssign(productId, normalized);
+        playScanSuccessSound();
         toast.success("business.assignBarcodeSaved", {
           name: product.name,
           code: normalized,
@@ -111,6 +116,7 @@ export function AssignBarcodesSheet({
         setSelectedId(null);
         setScannerOpen(false);
       } catch (err) {
+        playScanErrorSound();
         toast.errorFrom(err);
       }
     },

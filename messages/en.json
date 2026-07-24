@@ -277,6 +277,8 @@
     "stopCounting": "Stop counting",
     "scanAdded": "Added: {name}",
     "scanIncremented": "{name} × {qty}",
+    "scanAddedSubtitle": "Added · qty {qty}",
+    "scanIncrementedSubtitle": "Quantity updated · {qty}",
     "scanProductNotFound": "Code not found in the catalog.",
     "scanProductInactive": "That product is inactive.",
     "scanNotOnOrder": "That product is not on this purchase.",

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ScanBarcode, X } from "lucide-react";
+import { Check, ScanBarcode, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { useCameraBarcodeScan } from "@/hooks/useCameraBarcodeScan";
 import { useT } from "@/hooks/useTranslations";
+import type { ScanBannerFeedback } from "@/lib/barcode/scan-feedback";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,6 +21,9 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onScan: (code: string) => void;
   continuous?: boolean;
+  /** fullscreen covers the viewport; dock leaves the form visible above */
+  layout?: "fullscreen" | "dock";
+  feedback?: ScanBannerFeedback | null;
   title?: string;
   description?: string;
 };
@@ -29,10 +33,14 @@ export function BarcodeScannerSheet({
   onOpenChange,
   onScan,
   continuous = false,
+  layout = "fullscreen",
+  feedback = null,
   title,
   description,
 }: Props) {
   const { t } = useT();
+  const isDock = layout === "dock";
+
   const handleScan = React.useCallback(
     (code: string) => {
       onScan(code);
@@ -56,17 +64,32 @@ export function BarcodeScannerSheet({
           ? t("business.barcodeCameraUnavailable")
           : null;
 
+  const flashTone = feedback?.tone === "error" ? "error" : "success";
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         showCloseButton={false}
+        overlayClassName={
+          isDock
+            ? "bg-black/25 supports-backdrop-filter:backdrop-blur-none"
+            : "bg-black/40 supports-backdrop-filter:backdrop-blur-none"
+        }
         className={cn(
           "gap-0 overflow-hidden p-0",
-          "inset-x-0 top-0 bottom-0 w-full rounded-none border-0",
-          "data-[side=bottom]:h-[100dvh] data-[side=bottom]:max-h-[100dvh]",
-          "sm:inset-y-0 sm:top-0 sm:right-0 sm:bottom-0 sm:left-auto sm:w-full sm:max-w-md sm:border-l",
-          "sm:data-[side=bottom]:h-full sm:data-[side=bottom]:max-h-none"
+          isDock
+            ? cn(
+                "inset-x-0 bottom-0 top-auto w-full rounded-t-2xl border-t",
+                "data-[side=bottom]:h-[min(52dvh,26rem)] data-[side=bottom]:max-h-[min(52dvh,26rem)]",
+                "sm:data-[side=bottom]:h-[min(56dvh,28rem)] sm:data-[side=bottom]:max-h-[min(56dvh,28rem)]"
+              )
+            : cn(
+                "inset-x-0 top-0 bottom-0 w-full rounded-none border-0",
+                "data-[side=bottom]:h-[100dvh] data-[side=bottom]:max-h-[100dvh]",
+                "sm:inset-y-0 sm:top-0 sm:right-0 sm:bottom-0 sm:left-auto sm:w-full sm:max-w-md sm:border-l",
+                "sm:data-[side=bottom]:h-full sm:data-[side=bottom]:max-h-none"
+              )
         )}
       >
         <SheetHeader className="relative z-20 shrink-0 space-y-0 border-b border-border bg-background px-4 py-3 text-left">
@@ -108,30 +131,71 @@ export function BarcodeScannerSheet({
             autoPlay
           />
 
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-[8%] py-[18%] sm:px-10 sm:py-16">
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 flex items-center justify-center",
+              isDock ? "px-[10%] py-[12%]" : "px-[8%] py-[18%] sm:px-10 sm:py-16"
+            )}
+          >
             <div
               className={cn(
-                "relative w-full max-w-md",
-                "aspect-[3/1] max-h-[28dvh] min-h-[4.5rem] sm:max-h-[12rem]",
-                "rounded-xl border-2 border-white/85",
-                "shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]"
+                "relative w-full max-w-md transition-[box-shadow,border-color] duration-200",
+                "aspect-[3/1] max-h-[22dvh] min-h-[3.75rem] sm:max-h-[10rem]",
+                "rounded-xl border-2",
+                feedback
+                  ? flashTone === "error"
+                    ? "border-destructive shadow-[0_0_0_9999px_rgba(0,0,0,0.2)]"
+                    : "border-emerald-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.2)]"
+                  : cn(
+                      "border-white/85",
+                      isDock
+                        ? "shadow-[0_0_0_9999px_rgba(0,0,0,0.18)]"
+                        : "shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
+                    )
               )}
               aria-hidden
             />
           </div>
 
+          {feedback ? (
+            <div
+              className={cn(
+                "absolute inset-x-3 top-3 z-20 rounded-xl px-4 py-3 shadow-lg",
+                flashTone === "error"
+                  ? "bg-destructive text-destructive-foreground"
+                  : "bg-emerald-600 text-white"
+              )}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-3">
+                {flashTone === "success" ? (
+                  <Check className="mt-0.5 size-6 shrink-0" aria-hidden />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold leading-tight">
+                    {feedback.title}
+                  </p>
+                  {feedback.subtitle ? (
+                    <p className="mt-0.5 text-sm opacity-95">{feedback.subtitle}</p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div
             className={cn(
               "relative z-10 mt-auto space-y-3",
-              "bg-gradient-to-t from-black/90 via-black/55 to-transparent",
-              "px-4 pt-12 text-center text-white",
+              "bg-gradient-to-t from-black/90 via-black/50 to-transparent",
+              "px-4 pt-10 text-center text-white",
               "pb-[max(1rem,env(safe-area-inset-bottom))]"
             )}
           >
             {status === "starting" ? (
               <p className="text-sm">{t("business.barcodeCameraStarting")}</p>
             ) : null}
-            {status === "scanning" && !errorMessage ? (
+            {status === "scanning" && !errorMessage && !feedback ? (
               <p className="text-sm text-white/90">{t("business.barcodeAimHint")}</p>
             ) : null}
             {errorMessage ? (

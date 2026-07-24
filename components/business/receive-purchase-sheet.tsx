@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ScanBarcode } from "lucide-react";
+import { Check, ScanBarcode } from "lucide-react";
 
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
 import type { PurchaseCollectionMode } from "@/components/business/add-purchase-form";
@@ -32,6 +32,7 @@ import {
 import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { useReceivePurchase } from "@/hooks/usePurchases";
+import { useScanFeedback } from "@/hooks/useScanFeedback";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import {
@@ -82,6 +83,7 @@ export function ReceivePurchaseSheet({
 }: Props) {
   const { t, intlLocale, currency } = useT();
   const toast = useAppToast();
+  const { feedback: scanFeedback, showSuccess, showError } = useScanFeedback();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { data: existingLines, isLoading } = usePurchaseItems(purchase?.id ?? null);
   const { receivePurchase, isReceiving } = useReceivePurchase();
@@ -136,25 +138,27 @@ export function ReceivePurchaseSheet({
       const product = findProductByCode(products, code);
       const result = applyScanToReceiveLines(linesRef.current, product);
       if (!result.ok) {
-        toast.error(
-          result.reason === "not_on_order"
-            ? "business.scanNotOnOrder"
-            : "business.scanProductNotFound"
-        );
+        showError({
+          title: t(
+            result.reason === "not_on_order"
+              ? "business.scanNotOnOrder"
+              : "business.scanProductNotFound"
+          ),
+        });
         return;
       }
       const matched = result.lines.find((row) => row.product_id === result.product.id);
       setLines(result.lines as ReceiveLine[]);
       if (matched) setLastScannedKey(matched.key);
-      toast.success("business.scanIncremented", {
-        name: result.product.name,
-        qty: matched?.quantity_received ?? "1",
+      const qty = matched?.quantity_received ?? "1";
+      showSuccess({
+        title: result.product.name,
+        subtitle: result.overReceived
+          ? t("business.scanOverReceived", { name: result.product.name })
+          : t("business.scanIncrementedSubtitle", { qty }),
       });
-      if (result.overReceived) {
-        toast.error("business.scanOverReceived", { name: result.product.name });
-      }
     },
-    [products, toast]
+    [products, showError, showSuccess, t]
   );
 
   useHardwareBarcodeScan({
@@ -418,6 +422,28 @@ export function ReceivePurchaseSheet({
               {countingMode ? (
                 <p className="text-sm text-muted-foreground">{t("business.scanReady")}</p>
               ) : null}
+              {scanFeedback ? (
+                <div
+                  className={cn(
+                    "flex items-start gap-3 rounded-xl px-4 py-3 shadow-sm",
+                    scanFeedback.tone === "error"
+                      ? "bg-destructive text-destructive-foreground"
+                      : "bg-emerald-600 text-white"
+                  )}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {scanFeedback.tone !== "error" ? (
+                    <Check className="mt-0.5 size-6 shrink-0" aria-hidden />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold">{scanFeedback.title}</p>
+                    {scanFeedback.subtitle ? (
+                      <p className="text-sm opacity-95">{scanFeedback.subtitle}</p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               <div className="overflow-x-auto rounded-xl border border-border">
                 <Table>
                   <TableHeader>
@@ -435,7 +461,7 @@ export function ReceivePurchaseSheet({
                       return (
                         <TableRow
                           key={row.key}
-                          className={cn(lastScannedKey === row.key && "bg-secondary/15")}
+                          className={cn(lastScannedKey === row.key && "bg-emerald-500/15")}
                         >
                           <TableCell>{pr?.name ?? row.product_id}</TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -503,6 +529,8 @@ export function ReceivePurchaseSheet({
         onOpenChange={setScannerOpen}
         onScan={handleBarcodeScan}
         continuous
+        layout="dock"
+        feedback={scanFeedback}
       />
     </Sheet>
   );

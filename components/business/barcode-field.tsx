@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/hooks/useTranslations";
 import { normalizeProductCode } from "@/lib/barcode/normalize";
+import { playScanSuccessSound } from "@/lib/barcode/scan-feedback";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -67,7 +68,10 @@ export function BarcodeField({
       <BarcodeScannerSheet
         open={scannerOpen}
         onOpenChange={setScannerOpen}
-        onScan={(code) => onChange(code)}
+        onScan={(code) => {
+          playScanSuccessSound();
+          onChange(code);
+        }}
       />
     </div>
   );
