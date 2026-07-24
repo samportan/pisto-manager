@@ -47,6 +47,9 @@ export function mapRpcError(
   if (lower.includes("payment exceeds balance")) {
     return t("business.errorPaymentExceedsBalance");
   }
+  if (lower.includes("no open balance for customer")) {
+    return t("business.errorNoOpenCustomerBalance");
+  }
   if (lower.includes("customer required for partial or credit")) {
     return t("business.errorCustomerRequiredCredit");
   }
