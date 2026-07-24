@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, ScanBarcode, Trash2 } from "lucide-react";
 
 import { DocumentFormPage } from "@/components/business/document-form-page";
+import { BarcodeScannerSheet } from "@/components/business/barcode-scanner-sheet";
 import { ContactPicker } from "@/components/business/contact-picker";
 import { ProductPicker } from "@/components/business/product-picker";
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
@@ -21,8 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
+import { applyScanToDocumentLines } from "@/lib/barcode/apply-scan-to-lines";
 import type { Product } from "@/lib/db/products";
 import type { Contact } from "@/lib/db/contacts";
 import type {
@@ -32,7 +35,9 @@ import type {
 } from "@/lib/db/purchases";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { formatMoneyInputValue, multiplyMoney, sumMoney } from "@/lib/money";
+import { findProductByCode } from "@/lib/product-search";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
+import { cn } from "@/lib/utils";
 
 export type PurchaseCollectionMode = "full" | "partial" | "credit";
 
@@ -106,12 +111,48 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
   const [lines, setLines] = React.useState<Line[]>([
     { key: crypto.randomUUID(), product_id: "", quantity: "1", unit_cost: "" },
   ]);
+  const [scannerOpen, setScannerOpen] = React.useState(false);
+  const [lastScannedKey, setLastScannedKey] = React.useState<string | null>(null);
+  const linesRef = React.useRef(lines);
+  linesRef.current = lines;
 
   const productById = React.useMemo(() => {
     const m = new Map<string, Product>();
     for (const p of products) m.set(p.id, p);
     return m;
   }, [products]);
+
+  const pickerProducts = React.useMemo(() => products.filter((p) => p.is_active), [products]);
+
+  const handleBarcodeScan = React.useCallback(
+    (code: string) => {
+      const product = findProductByCode(pickerProducts, code, { activeOnly: true });
+      const result = applyScanToDocumentLines(linesRef.current, product, {
+        priceField: "cost_price",
+      });
+      if (!result.ok) {
+        toast.error(
+          result.reason === "inactive"
+            ? "business.scanProductInactive"
+            : "business.scanProductNotFound"
+        );
+        return;
+      }
+      const matched = result.lines.find((row) => row.product_id === result.product.id);
+      setLines(result.lines as Line[]);
+      if (matched) setLastScannedKey(matched.key);
+      toast.success(
+        result.action === "added" ? "business.scanAdded" : "business.scanIncremented",
+        { name: result.product.name, qty: matched?.quantity ?? "1" }
+      );
+    },
+    [pickerProducts, toast]
+  );
+
+  useHardwareBarcodeScan({
+    enabled: !isSubmitting && !scannerOpen,
+    onScan: handleBarcodeScan,
+  });
 
   function setLine(key: string, patch: Partial<Line>) {
     setLines((prev) =>
@@ -207,8 +248,6 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
       toast.errorFrom(err);
     }
   }
-
-  const pickerProducts = products.filter((p) => p.is_active);
 
   function qtyInputProps(productId: string) {
     const pr = productId ? productById.get(productId) : undefined;
@@ -384,11 +423,25 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
 
   const linesContent = (
     <>
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addLine}>
-          <Plus className="size-4" />
-          {t("business.addLine")}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">{t("business.scanReady")}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={isSubmitting}
+            onClick={() => setScannerOpen(true)}
+          >
+            <ScanBarcode className="size-4" />
+            {t("business.scanBarcode")}
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addLine}>
+            <Plus className="size-4" />
+            {t("business.addLine")}
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border">
@@ -410,7 +463,10 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
               const pr = row.product_id ? productById.get(row.product_id) : undefined;
               const qtyProps = qtyInputProps(row.product_id);
               return (
-                <TableRow key={row.key}>
+                <TableRow
+                  key={row.key}
+                  className={cn(lastScannedKey === row.key && "bg-secondary/15")}
+                >
                   <TableCell>
                     <ProductPicker
                       products={pickerProducts}
@@ -462,6 +518,13 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
           </TableBody>
         </Table>
       </div>
+
+      <BarcodeScannerSheet
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScan={handleBarcodeScan}
+        continuous
+      />
     </>
   );
 

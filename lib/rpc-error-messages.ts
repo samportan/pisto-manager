@@ -59,6 +59,12 @@ export function mapRpcError(
   if (lower === "forbidden" || lower.includes("forbidden")) {
     return t("toast.errorForbidden");
   }
+  if (
+    lower.includes("products_org_barcode_unique") ||
+    (lower.includes("duplicate key") && lower.includes("barcode"))
+  ) {
+    return t("toast.errorBarcodeDuplicate");
+  }
 
   if (message.trim()) return message;
   return t(context === "delete" ? "common.errorDelete" : "common.errorSave");

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { BarcodeField } from "@/components/business/barcode-field";
 import { UomSelect } from "@/components/business/uom-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
 import { useStockAdjustment, useStockMovements } from "@/hooks/useStockMovements";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
+import { normalizeProductCode } from "@/lib/barcode/normalize";
 import type { NewProduct, Product } from "@/lib/db/products";
 import type { StockAdjustmentReason } from "@/lib/db/stock-movements";
 import type { UnitOfMeasure } from "@/lib/uom";
@@ -39,13 +41,21 @@ const REASONS: StockAdjustmentReason[] = [
 
 type Props = {
   product: Product | null;
+  products?: Product[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: Partial<ProductFormValues>) => Promise<void>;
   isSubmitting?: boolean;
 };
 
-export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubmitting }: Props) {
+export function EditProductSheet({
+  product,
+  products = [],
+  open,
+  onOpenChange,
+  onSubmit,
+  isSubmitting,
+}: Props) {
   const { t, intlLocale } = useT();
   const toast = useAppToast();
   const { movements, isLoading: movementsLoading } = useStockMovements(product?.id ?? null);
@@ -53,6 +63,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
 
   const [name, setName] = React.useState("");
   const [sku, setSku] = React.useState("");
+  const [barcode, setBarcode] = React.useState("");
   const [salePrice, setSalePrice] = React.useState("");
   const [costPrice, setCostPrice] = React.useState("");
   const [minStock, setMinStock] = React.useState("");
@@ -67,6 +78,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
     if (!open || !product) return;
     setName(product.name);
     setSku(product.sku ?? "");
+    setBarcode(product.barcode ?? "");
     setSalePrice(String(product.sale_price));
     setCostPrice(String(product.cost_price));
     setMinStock(String(product.min_stock ?? 0));
@@ -80,13 +92,24 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
   const currentStock = product ? Number(product.stock) : 0;
   const adjustDelta = Number(adjustQty) || 0;
   const stockAfter = currentStock + adjustDelta;
+  const normalizedBarcode = normalizeProductCode(barcode);
+  const barcodeDuplicate =
+    normalizedBarcode.length > 0 &&
+    products.some(
+      (p) =>
+        p.id !== product?.id &&
+        p.barcode &&
+        normalizeProductCode(p.barcode).toLowerCase() === normalizedBarcode.toLowerCase()
+    );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (barcodeDuplicate) return;
     try {
       const patch: Partial<ProductFormValues> = {
         name: name.trim(),
         sku: sku.trim() || null,
+        barcode: normalizedBarcode || null,
         sale_price: moneyInputToNumber(salePrice),
         cost_price: moneyInputToNumber(costPrice),
         min_stock: Number(minStock) || 0,
@@ -172,6 +195,12 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
                   placeholder={t("business.skuPlaceholder")}
                 />
               </div>
+              <BarcodeField
+                id="ep-barcode"
+                value={barcode}
+                onChange={setBarcode}
+                duplicate={barcodeDuplicate}
+              />
               <div className="space-y-2">
                 <Label htmlFor="ep-uom">{t("business.unitOfMeasure")}</Label>
                 <UomSelect
@@ -347,7 +376,7 @@ export function EditProductSheet({ product, open, onOpenChange, onSubmit, isSubm
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={isSubmitting || !product}>
+            <Button type="submit" disabled={isSubmitting || !product || barcodeDuplicate}>
               {isSubmitting ? (
                 <PendingLabel label={t("common.saving")} spinnerClassName="size-3.5" />
               ) : (

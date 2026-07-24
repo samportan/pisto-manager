@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Pencil, Search, Trash2 } from "lucide-react";
+import { Plus, Pencil, ScanBarcode, Search, Trash2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { AddProductSheet } from "@/components/business/add-product-sheet";
+import { AssignBarcodesSheet } from "@/components/business/assign-barcodes-sheet";
 import { EditProductSheet } from "@/components/business/edit-product-sheet";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { PageHeader } from "@/components/business/page-header";
@@ -17,11 +18,16 @@ import { Input } from "@/components/ui/input";
 import { useProducts } from "@/hooks/useProducts";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
+import { normalizeProductCode } from "@/lib/barcode/normalize";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildProductsWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { Product } from "@/lib/db/products";
 import { isLowStock, isOutOfStock, stockUrgency } from "@/lib/stock";
 import { cn } from "@/lib/utils";
+
+function hasBarcode(p: Product): boolean {
+  return Boolean(normalizeProductCode(p.barcode ?? ""));
+}
 
 export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { t, intlLocale, currency } = useT();
@@ -31,11 +37,13 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
     useProducts();
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [assignOpen, setAssignOpen] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<Product | null>(null);
   const [search, setSearch] = React.useState("");
   const [lowStockOnly, setLowStockOnly] = React.useState(
     () => searchParams.get("stock") === "low"
   );
+  const [missingBarcodeOnly, setMissingBarcodeOnly] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState(false);
 
@@ -45,15 +53,22 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
     }
   }, [searchParams]);
 
+  const missingBarcodeCount = React.useMemo(
+    () => products.filter((p) => !hasBarcode(p)).length,
+    [products]
+  );
+
   const tableData = React.useMemo(() => {
-    const filtered = lowStockOnly ? products.filter(isLowStock) : products;
+    let filtered = products;
+    if (lowStockOnly) filtered = filtered.filter(isLowStock);
+    if (missingBarcodeOnly) filtered = filtered.filter((p) => !hasBarcode(p));
     if (!lowStockOnly) return filtered;
     return filtered.slice().sort((a, b) => {
       const urgencyDiff = stockUrgency(a) - stockUrgency(b);
       if (urgencyDiff !== 0) return urgencyDiff;
       return a.name.localeCompare(b.name);
     });
-  }, [products, lowStockOnly]);
+  }, [products, lowStockOnly, missingBarcodeOnly]);
 
   const columns = React.useMemo<ColumnDef<Product>[]>(
     () => [
@@ -68,6 +83,15 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
                 {t("business.sku")} {row.original.sku}
               </p>
             ) : null}
+            {row.original.barcode ? (
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {t("business.barcode")} {row.original.barcode}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                {t("business.filterMissingBarcode")}
+              </p>
+            )}
           </div>
         ),
       },
@@ -176,6 +200,18 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
                   }
                 }}
               />
+              {missingBarcodeCount > 0 ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setAssignOpen(true)}
+                >
+                  <ScanBarcode className="size-4" aria-hidden />
+                  {t("business.assignBarcodes")}
+                </Button>
+              ) : null}
               <Button type="button" size="sm" className="gap-1.5" onClick={() => setSheetOpen(true)}>
                 <Plus className="size-4" aria-hidden />
                 {t("business.newProduct")}
@@ -198,16 +234,28 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant={lowStockOnly ? "secondary" : "outline"}
-            className={cn(lowStockOnly && "border-destructive/40 text-destructive")}
-            onClick={() => setLowStockOnly((v) => !v)}
-            aria-pressed={lowStockOnly}
-          >
-            {t("business.filterLowStock")}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={missingBarcodeOnly ? "secondary" : "outline"}
+              onClick={() => setMissingBarcodeOnly((v) => !v)}
+              aria-pressed={missingBarcodeOnly}
+            >
+              {t("business.filterMissingBarcode")}
+              {missingBarcodeCount > 0 ? ` (${missingBarcodeCount})` : ""}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={lowStockOnly ? "secondary" : "outline"}
+              className={cn(lowStockOnly && "border-destructive/40 text-destructive")}
+              onClick={() => setLowStockOnly((v) => !v)}
+              aria-pressed={lowStockOnly}
+            >
+              {t("business.filterLowStock")}
+            </Button>
+          </div>
         </div>
 
         <DataTable
@@ -216,15 +264,18 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
           globalFilter={search}
           isLoading={isLoading}
           emptyLabel={
-            lowStockOnly && !search
-              ? t("business.lowStockEmpty")
-              : t("business.noProducts")
+            missingBarcodeOnly && !search
+              ? t("business.missingBarcodeEmpty")
+              : lowStockOnly && !search
+                ? t("business.lowStockEmpty")
+                : t("business.noProducts")
           }
         />
       </div>
 
       <EditProductSheet
         product={editProduct ? products.find((p) => p.id === editProduct.id) ?? editProduct : null}
+        products={products}
         open={!!editProduct}
         onOpenChange={(o) => !o && setEditProduct(null)}
         isSubmitting={isUpdating}
@@ -245,6 +296,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         isSubmitting={isCreating}
+        products={products}
         onSubmit={async (values) => {
           try {
             await createProduct(values);
@@ -254,6 +306,16 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
             toast.errorFrom(e);
             throw e;
           }
+        }}
+      />
+
+      <AssignBarcodesSheet
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        products={products}
+        isAssigning={isUpdating}
+        onAssign={async (productId, barcode) => {
+          await updateProduct({ id: productId, patch: { barcode } });
         }}
       />
 
