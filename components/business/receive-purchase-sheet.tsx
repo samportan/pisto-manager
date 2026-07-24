@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { ScanBarcode } from "lucide-react";
 
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
 import type { PurchaseCollectionMode } from "@/components/business/add-purchase-form";
+import { BarcodeScannerSheet } from "@/components/business/barcode-scanner-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,16 +29,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { useReceivePurchase } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
+import {
+  applyScanToReceiveLines,
+  resetReceiveQuantitiesToZero,
+} from "@/lib/barcode/apply-scan-to-receive";
 import type { PurchaseItemRow } from "@/lib/db/purchase-items";
 import type { PurchaseLineInput, PurchasePaymentMethod, PurchaseWithMeta } from "@/lib/db/purchases";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { formatMoneyInputValue, multiplyMoney, sumMoney } from "@/lib/money";
+import { findProductByCode } from "@/lib/product-search";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
 import type { Product } from "@/lib/db/products";
+import { cn } from "@/lib/utils";
 
 type ReceiveLine = {
   key: string;
@@ -85,6 +94,13 @@ export function ReceivePurchaseSheet({
   const [feesNotes, setFeesNotes] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [lines, setLines] = React.useState<ReceiveLine[]>([]);
+  const [countingMode, setCountingMode] = React.useState(false);
+  const [scannerOpen, setScannerOpen] = React.useState(false);
+  const [lastScannedKey, setLastScannedKey] = React.useState<string | null>(null);
+  const linesRef = React.useRef(lines);
+  linesRef.current = lines;
+  const countingModeRef = React.useRef(countingMode);
+  countingModeRef.current = countingMode;
 
   const productById = React.useMemo(() => {
     const m = new Map<string, Product>();
@@ -103,6 +119,9 @@ export function ReceivePurchaseSheet({
     );
     setFeesNotes(purchase.fees_notes ?? "");
     setNotes(purchase.notes ?? "");
+    setCountingMode(false);
+    setScannerOpen(false);
+    setLastScannedKey(null);
   }, [open, purchase]);
 
   React.useEffect(() => {
@@ -110,6 +129,49 @@ export function ReceivePurchaseSheet({
       setLines(linesFromItems(existingLines));
     }
   }, [existingLines]);
+
+  const handleBarcodeScan = React.useCallback(
+    (code: string) => {
+      if (!countingModeRef.current) return;
+      const product = findProductByCode(products, code);
+      const result = applyScanToReceiveLines(linesRef.current, product);
+      if (!result.ok) {
+        toast.error(
+          result.reason === "not_on_order"
+            ? "business.scanNotOnOrder"
+            : "business.scanProductNotFound"
+        );
+        return;
+      }
+      const matched = result.lines.find((row) => row.product_id === result.product.id);
+      setLines(result.lines as ReceiveLine[]);
+      if (matched) setLastScannedKey(matched.key);
+      toast.success("business.scanIncremented", {
+        name: result.product.name,
+        qty: matched?.quantity_received ?? "1",
+      });
+      if (result.overReceived) {
+        toast.error("business.scanOverReceived", { name: result.product.name });
+      }
+    },
+    [products, toast]
+  );
+
+  useHardwareBarcodeScan({
+    enabled: open && countingMode && !scannerOpen && !isReceiving,
+    onScan: handleBarcodeScan,
+  });
+
+  function startCounting() {
+    setCountingMode(true);
+    setLines((prev) => resetReceiveQuantitiesToZero(prev) as ReceiveLine[]);
+    setLastScannedKey(null);
+  }
+
+  function stopCounting() {
+    setCountingMode(false);
+    setScannerOpen(false);
+  }
 
   function setLine(key: string, patch: Partial<ReceiveLine>) {
     setLines((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -311,48 +373,97 @@ export function ReceivePurchaseSheet({
               />
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>{t("business.product")}</TableHead>
-                    <TableHead className="text-right">{t("business.qtyOrdered")}</TableHead>
-                    <TableHead className="text-right">{t("business.qtyReceived")}</TableHead>
-                    <TableHead className="text-right">{t("business.unitCost")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((row) => {
-                    const pr = row.product_id ? productById.get(row.product_id) : undefined;
-                    const qtyProps = qtyInputProps(row.product_id);
-                    return (
-                      <TableRow key={row.key}>
-                        <TableCell>{pr?.name ?? row.product_id}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">
-                          {row.quantity_ordered}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            {...qtyProps}
-                            className="ml-auto h-10 w-20 text-right tabular-nums"
-                            value={row.quantity_received}
-                            onChange={(e) =>
-                              setLine(row.key, { quantity_received: e.target.value })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <MoneyInput
-                            className="ml-auto h-10 w-28 text-right"
-                            value={row.unit_cost}
-                            onChange={(v) => setLine(row.key, { unit_cost: v })}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>{t("business.lineItems")}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {countingMode ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={stopCounting}
+                        disabled={isReceiving}
+                      >
+                        {t("business.stopCounting")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={isReceiving}
+                        onClick={() => setScannerOpen(true)}
+                      >
+                        <ScanBarcode className="size-4" />
+                        {t("business.scanBarcode")}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={isReceiving}
+                      onClick={startCounting}
+                    >
+                      <ScanBarcode className="size-4" />
+                      {t("business.countWithScanner")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {countingMode ? (
+                <p className="text-sm text-muted-foreground">{t("business.scanReady")}</p>
+              ) : null}
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>{t("business.product")}</TableHead>
+                      <TableHead className="text-right">{t("business.qtyOrdered")}</TableHead>
+                      <TableHead className="text-right">{t("business.qtyReceived")}</TableHead>
+                      <TableHead className="text-right">{t("business.unitCost")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lines.map((row) => {
+                      const pr = row.product_id ? productById.get(row.product_id) : undefined;
+                      const qtyProps = qtyInputProps(row.product_id);
+                      return (
+                        <TableRow
+                          key={row.key}
+                          className={cn(lastScannedKey === row.key && "bg-secondary/15")}
+                        >
+                          <TableCell>{pr?.name ?? row.product_id}</TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {row.quantity_ordered}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Input
+                              {...qtyProps}
+                              className="ml-auto h-10 w-20 text-right tabular-nums"
+                              value={row.quantity_received}
+                              onChange={(e) =>
+                                setLine(row.key, { quantity_received: e.target.value })
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <MoneyInput
+                              className="ml-auto h-10 w-28 text-right"
+                              value={row.unit_cost}
+                              onChange={(v) => setLine(row.key, { unit_cost: v })}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
@@ -387,6 +498,12 @@ export function ReceivePurchaseSheet({
           </form>
         )}
       </SheetContent>
+      <BarcodeScannerSheet
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScan={handleBarcodeScan}
+        continuous
+      />
     </Sheet>
   );
 }
