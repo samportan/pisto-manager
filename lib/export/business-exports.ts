@@ -21,6 +21,7 @@ export function productsToRows(products: Product[]): SheetRow[] {
   return products.map((p) => ({
     nombre: p.name,
     sku: p.sku ?? "",
+    codigo_barras: p.barcode ?? "",
     precio_venta: Number(p.sale_price),
     precio_costo: Number(p.cost_price),
     stock: Number(p.stock),

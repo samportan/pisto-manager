@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { BarcodeField } from "@/components/business/barcode-field";
 import { UomSelect } from "@/components/business/uom-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useT } from "@/hooks/useTranslations";
-import type { NewProduct } from "@/lib/db/products";
+import { normalizeProductCode } from "@/lib/barcode/normalize";
+import type { NewProduct, Product } from "@/lib/db/products";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { formatMoneyInputValue } from "@/lib/money";
 import { suggestedSalePrice, TARGET_CONTRIBUTION_MARGIN } from "@/lib/pricing";
@@ -30,12 +32,20 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: ProductFormValues) => Promise<void>;
   isSubmitting?: boolean;
+  products?: Product[];
 };
 
-export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: Props) {
+export function AddProductSheet({
+  open,
+  onOpenChange,
+  onSubmit,
+  isSubmitting,
+  products = [],
+}: Props) {
   const { t, intlLocale, currency } = useT();
   const [name, setName] = React.useState("");
   const [sku, setSku] = React.useState("");
+  const [barcode, setBarcode] = React.useState("");
   const [salePrice, setSalePrice] = React.useState("");
   const [salePriceTouched, setSalePriceTouched] = React.useState(false);
   const [costPrice, setCostPrice] = React.useState("");
@@ -51,10 +61,20 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
       ? formatMoneyDisplay(suggested, { currency, locale: intlLocale })
       : null;
 
+  const normalizedBarcode = normalizeProductCode(barcode);
+  const barcodeDuplicate =
+    normalizedBarcode.length > 0 &&
+    products.some(
+      (p) =>
+        p.barcode &&
+        normalizeProductCode(p.barcode).toLowerCase() === normalizedBarcode.toLowerCase()
+    );
+
   React.useEffect(() => {
     if (!open) return;
     setName("");
     setSku("");
+    setBarcode("");
     setSalePrice("");
     setSalePriceTouched(false);
     setCostPrice("");
@@ -79,6 +99,7 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (barcodeDuplicate) return;
     try {
       const cost = moneyInputToNumber(costPrice);
       let sale = moneyInputToNumber(salePrice);
@@ -88,6 +109,7 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
       await onSubmit({
         name: name.trim(),
         sku: sku.trim() || null,
+        barcode: normalizedBarcode || null,
         sale_price: sale,
         cost_price: cost,
         stock: Number(stock) || 0,
@@ -140,6 +162,12 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
                   placeholder={t("business.skuPlaceholder")}
                 />
               </div>
+              <BarcodeField
+                id="p-barcode"
+                value={barcode}
+                onChange={setBarcode}
+                duplicate={barcodeDuplicate}
+              />
               <div className="space-y-2">
                 <Label htmlFor="p-uom">{t("business.unitOfMeasure")}</Label>
                 <UomSelect
@@ -222,7 +250,7 @@ export function AddProductSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || barcodeDuplicate}>
               {isSubmitting ? (
                 <PendingLabel label={t("common.saving")} spinnerClassName="size-3.5" />
               ) : (

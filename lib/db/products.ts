@@ -7,6 +7,7 @@ export type Product = {
   organization_id: string;
   name: string;
   sku: string | null;
+  barcode: string | null;
   sale_price: number;
   cost_price: number;
   stock: number;
@@ -34,6 +35,7 @@ export async function getProductsByOrgId(
   if (error) throw error;
   return (data ?? []).map((p) => ({
     ...(p as Product),
+    barcode: ((p as Product).barcode ?? null) as string | null,
     unit_of_measure: ((p as Product).unit_of_measure ?? "unit") as UnitOfMeasure,
   }));
 }

@@ -6,7 +6,7 @@ import { ChevronDown, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/hooks/useTranslations";
 import type { Product } from "@/lib/db/products";
-import { filterProductsByName } from "@/lib/product-search";
+import { filterProductsForPicker } from "@/lib/product-search";
 import { cn } from "@/lib/utils";
 
 type ProductPickerProps = {
@@ -40,7 +40,7 @@ export function ProductPicker({
   );
 
   const filteredProducts = React.useMemo(
-    () => filterProductsByName(products, query),
+    () => filterProductsForPicker(products, query),
     [products, query]
   );
 
@@ -130,6 +130,12 @@ export function ProductPicker({
       : selected.name
     : t("business.selectProduct");
 
+  function secondaryLabel(p: Product): string | null {
+    if (p.barcode) return p.barcode;
+    if (p.sku) return p.sku;
+    return null;
+  }
+
   return (
     <div ref={containerRef} className="relative w-full">
       <button
@@ -177,25 +183,35 @@ export function ProductPicker({
                 {t("business.noProductsMatch")}
               </li>
             ) : (
-              filteredProducts.map((p) => (
-                <li key={p.id} role="option" aria-selected={p.id === value}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
-                      p.id === value && "bg-muted"
-                    )}
-                    onClick={() => selectProduct(p.id)}
-                  >
-                    <span className="truncate font-medium">{p.name}</span>
-                    {showStock ? (
-                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                        {t("business.stockLabel", { count: String(p.stock) })}
+              filteredProducts.map((p) => {
+                const code = secondaryLabel(p);
+                return (
+                  <li key={p.id} role="option" aria-selected={p.id === value}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
+                        p.id === value && "bg-muted"
+                      )}
+                      onClick={() => selectProduct(p.id)}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{p.name}</span>
+                        {code ? (
+                          <span className="block truncate text-xs text-muted-foreground tabular-nums">
+                            {code}
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </button>
-                </li>
-              ))
+                      {showStock ? (
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {t("business.stockLabel", { count: String(p.stock) })}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })
             )}
           </ul>
         </div>

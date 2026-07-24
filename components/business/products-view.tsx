@@ -68,6 +68,11 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
                 {t("business.sku")} {row.original.sku}
               </p>
             ) : null}
+            {row.original.barcode ? (
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {t("business.barcode")} {row.original.barcode}
+              </p>
+            ) : null}
           </div>
         ),
       },
@@ -225,6 +230,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
 
       <EditProductSheet
         product={editProduct ? products.find((p) => p.id === editProduct.id) ?? editProduct : null}
+        products={products}
         open={!!editProduct}
         onOpenChange={(o) => !o && setEditProduct(null)}
         isSubmitting={isUpdating}
@@ -245,6 +251,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         isSubmitting={isCreating}
+        products={products}
         onSubmit={async (values) => {
           try {
             await createProduct(values);
