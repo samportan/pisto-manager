@@ -163,8 +163,26 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
   });
 
   function setLine(key: string, patch: Partial<Line>) {
-    setLines((prev) =>
-      prev.map((row) => {
+    setLines((prev) => {
+      if (patch.product_id) {
+        const duplicate = prev.find(
+          (row) => row.key !== key && row.product_id === patch.product_id
+        );
+        if (duplicate) {
+          const current = prev.find((row) => row.key === key);
+          const addQty = Number(current?.quantity) || 0;
+          const mergedQty = (Number(duplicate.quantity) || 0) + addQty;
+          return prev
+            .filter((row) => row.key !== key)
+            .map((row) =>
+              row.key === duplicate.key
+                ? { ...row, quantity: String(mergedQty || 1) }
+                : row
+            );
+        }
+      }
+
+      return prev.map((row) => {
         if (row.key !== key) return row;
         const next = { ...row, ...patch };
         if (patch.product_id !== undefined && patch.product_id) {
@@ -174,8 +192,8 @@ export function AddPurchaseForm({ products, suppliers, onSubmit, onCancel, isSub
           }
         }
         return next;
-      })
-    );
+      });
+    });
   }
 
   function addLine() {

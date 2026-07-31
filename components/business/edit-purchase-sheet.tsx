@@ -131,7 +131,34 @@ export function EditPurchaseSheet({
   }, [existingLines]);
 
   function setLine(key: string, patch: Partial<EditLine>) {
-    setLines((prev) => prev.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+    setLines((prev) => {
+      if (patch.product_id) {
+        const duplicate = prev.find(
+          (row) => row.key !== key && row.product_id === patch.product_id
+        );
+        if (duplicate) {
+          const current = prev.find((row) => row.key === key);
+          const addOrdered = Number(current?.quantity_ordered) || 0;
+          const addReceived = Number(current?.quantity_received) || 0;
+          return prev
+            .filter((row) => row.key !== key)
+            .map((row) =>
+              row.key === duplicate.key
+                ? {
+                    ...row,
+                    quantity_ordered: String(
+                      (Number(row.quantity_ordered) || 0) + addOrdered || 1
+                    ),
+                    quantity_received: String(
+                      (Number(row.quantity_received) || 0) + addReceived || 1
+                    ),
+                  }
+                : row
+            );
+        }
+      }
+      return prev.map((row) => (row.key === key ? { ...row, ...patch } : row));
+    });
   }
 
   function addLine() {
