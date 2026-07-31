@@ -212,6 +212,7 @@ export function AddProductSheet({
                     inputMode="decimal"
                     step="0.01"
                     min="0"
+                    placeholder="0"
                     value={stock}
                     onChange={(e) => setStock(e.target.value)}
                   />
@@ -229,6 +230,7 @@ export function AddProductSheet({
                   />
                 </div>
               </div>
+              <p className="text-xs text-muted-foreground">{t("business.stockOnHandHint")}</p>
               <p className="text-xs text-muted-foreground">{t("business.minStockAlertHint")}</p>
               <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                 <input

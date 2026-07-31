@@ -287,6 +287,7 @@
     "salePrice": "Precio venta",
     "costPrice": "Precio costo",
     "stockOnHand": "Stock disponible",
+    "stockOnHandHint": "Solo lo que ya tienes en mano. Si vas a registrar una compra después, déjalo en 0: la compra suma el stock al recibir.",
     "reorderAt": "Reordenar en (mín.)",
     "activeInPickers": "Activo (visible en selectores)",
     "newContactTitle": "Nuevo contacto",

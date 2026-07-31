@@ -55,10 +55,13 @@ export async function updateProduct(
   id: string,
   patch: Partial<NewProduct>
 ): Promise<Product> {
+  // Stock must change only via sales, purchases, or create_stock_adjustment.
+  const safePatch = { ...patch };
+  delete safePatch.stock;
   const supabase = createClient();
   const { data, error } = await supabase
     .from("products")
-    .update(patch)
+    .update(safePatch)
     .eq("id", id)
     .select("*")
     .single();
