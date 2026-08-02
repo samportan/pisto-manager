@@ -44,6 +44,9 @@ function useInvalidateSales() {
     if (!orgId) return;
     void queryClient.invalidateQueries({ queryKey: ["sales", orgId] });
     void queryClient.invalidateQueries({ queryKey: customerBalanceKeys.all(orgId) });
+    void queryClient.invalidateQueries({ queryKey: ["business-overview", orgId] });
+    void queryClient.invalidateQueries({ queryKey: ["sale-insights", orgId] });
+    void queryClient.invalidateQueries({ queryKey: ["product-insights-agg", orgId] });
   };
 }
 
@@ -83,17 +86,18 @@ export function useOpenSalesByCustomer(customerId: string | null) {
   };
 }
 
-export function useSales(opts?: ListSalesOptions) {
+export function useSales(opts?: ListSalesOptions & { fetchList?: boolean }) {
   const queryClient = useQueryClient();
   const { userId, sessionReady } = useAuthUserId();
   const includeDeleted = opts?.includeDeleted ?? false;
+  const fetchList = opts?.fetchList ?? false;
   const orgId = useSalesOrgId();
   const invalidate = useInvalidateSales();
 
   const query = useQuery({
     queryKey: orgId ? salesKeys.all(orgId, opts) : ["sales", "idle"],
     queryFn: () => getSalesByOrgId(orgId!, { includeDeleted }),
-    enabled: sessionReady && !!userId && !!orgId,
+    enabled: sessionReady && !!userId && !!orgId && fetchList,
   });
 
   const createMutation = useMutation({

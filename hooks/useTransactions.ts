@@ -12,13 +12,15 @@ import {
   type NewTransaction,
   type NewTransactionFormValues,
   type Transaction,
+  type TransactionListOptions,
   type TransactionUpdate,
 } from "@/lib/db/transactions";
 import { financialSummaryKeys } from "@/lib/financial-summary";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 
 export const transactionKeys = {
-  all: (userId: string) => ["transactions", userId] as const,
+  all: (userId: string, opts?: TransactionListOptions) =>
+    ["transactions", userId, opts?.from ?? "all", opts?.to ?? "all"] as const,
 };
 
 export type UseTransactionsResult = {
@@ -42,11 +44,24 @@ export type UseTransactionsResult = {
   deleteError: Error | null;
 };
 
-export function useTransactions(): UseTransactionsResult {
+function recentRangeMonths(months: number): TransactionListOptions {
+  const now = new Date();
+  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+  return { from: from.toISOString() };
+}
+
+export function useTransactions(
+  opts?: TransactionListOptions & { recentMonths?: number }
+): UseTransactionsResult {
   const queryClient = useQueryClient();
   const [userId, setUserId] = React.useState<string | null>(null);
   const [sessionReady, setSessionReady] = React.useState(false);
   const fetchSeq = React.useRef(0);
+  const range: TransactionListOptions | undefined = opts?.from || opts?.to
+    ? { from: opts.from, to: opts.to }
+    : opts?.recentMonths
+      ? recentRangeMonths(opts.recentMonths)
+      : recentRangeMonths(14);
 
   React.useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -81,17 +96,14 @@ export function useTransactions(): UseTransactionsResult {
     isSupabaseConfigured() && sessionReady && userId !== null;
 
   const query = useQuery({
-    queryKey: userId ? transactionKeys.all(userId) : ["transactions", "idle"],
-    queryFn: async () => {
-      const rows = await getTransactionsByUserId(userId!);
-      return rows ?? [];
-    },
+    queryKey: userId ? transactionKeys.all(userId, range) : ["transactions", "idle"],
+    queryFn: async () => getTransactionsByUserId(userId!, range),
     enabled,
   });
 
   const invalidateTx = () => {
     if (userId) {
-      void queryClient.invalidateQueries({ queryKey: transactionKeys.all(userId) });
+      void queryClient.invalidateQueries({ queryKey: ["transactions", userId] });
       void queryClient.invalidateQueries({
         queryKey: financialSummaryKeys.all(userId),
       });

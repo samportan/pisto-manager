@@ -73,7 +73,13 @@ export function BudgetsView() {
     isDeleting,
   } = useBudgets();
   const { categories } = useCategories();
-  const { transactions } = useTransactions();
+  const monthFrom = React.useMemo(() => {
+    return new Date(Date.UTC(y, m, 1)).toISOString();
+  }, [y, m]);
+  const monthTo = React.useMemo(() => {
+    return new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999)).toISOString();
+  }, [y, m]);
+  const { transactions } = useTransactions({ from: monthFrom, to: monthTo });
 
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<BudgetWithCategory | null>(null);

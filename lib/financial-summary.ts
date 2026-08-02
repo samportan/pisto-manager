@@ -2,7 +2,7 @@ import { createClient } from "@/lib/client";
 import type { Account } from "@/lib/db/accounts";
 import type { Transaction } from "@/lib/db/transactions";
 import { getAccountsByUserId } from "@/lib/db/accounts";
-import { getTransactionsByUserId } from "@/lib/db/transactions";
+import { fetchUserMonthExpenseTotal } from "@/lib/db/analytics";
 
 export const financialSummaryKeys = {
   all: (userId: string) => ["financial-summary", userId] as const,
@@ -154,9 +154,13 @@ export function computeSummaryFromData(
 }
 
 async function computeSummaryClientSide(userId: string): Promise<UserFinancialSummary> {
-  const [accounts, transactions] = await Promise.all([
+  const [accounts, totalSpentThisMonth] = await Promise.all([
     getAccountsByUserId(userId),
-    getTransactionsByUserId(userId),
+    fetchUserMonthExpenseTotal(),
   ]);
-  return computeSummaryFromData(accounts ?? [], transactions ?? []);
+  const fromAccounts = computeSummaryFromData(accounts ?? [], []);
+  return {
+    ...fromAccounts,
+    totalSpentThisMonth,
+  };
 }

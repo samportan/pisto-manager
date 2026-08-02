@@ -38,9 +38,13 @@ import { salesKeys, useDeleteSale, useSalesPaginated } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import { formatMoneyDisplay } from "@/lib/format-money";
-import { buildSalesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import {
-  getSalesByOrgId,
+  buildSalesWorkbookOnDemand,
+  downloadWorkbook,
+  todayFilename,
+} from "@/lib/export/business-exports";
+import {
+  listSalesPaginated,
   type PaymentMethod,
   type PaymentStatus,
   type SaleWithMeta,
@@ -474,11 +478,7 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
                   if (!activeOrgId) return;
                   setExporting(true);
                   try {
-                    const sales = await queryClient.fetchQuery({
-                      queryKey: salesKeys.all(activeOrgId),
-                      queryFn: () => getSalesByOrgId(activeOrgId),
-                    });
-                    const sheets = await buildSalesWorkbook(activeOrgId, sales, contacts, {
+                    const sheets = await buildSalesWorkbookOnDemand(activeOrgId, contacts, {
                       sales: t("business.sheetSales"),
                       saleLines: t("business.sheetSaleLines"),
                     });
@@ -616,15 +616,15 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
         }}
         onSuccess={async () => {
           if (activeOrgId) {
-            const sales = await queryClient.fetchQuery({
-              queryKey: salesKeys.all(activeOrgId),
-              queryFn: () => getSalesByOrgId(activeOrgId),
-            });
-            const updated = sales.find((s) => s.id === paymentSale?.id);
-            if (updated) setDetailSale(updated);
-            void queryClient.invalidateQueries({
+            const refreshed = await queryClient.fetchQuery({
               queryKey: salesKeys.paginated(activeOrgId, pageIndex + 1, pageSize, filters),
+              queryFn: () =>
+                listSalesPaginated(activeOrgId, pageIndex + 1, pageSize, filters),
             });
+            if (paymentSale) {
+              const updated = refreshed.data.find((s) => s.id === paymentSale.id);
+              if (updated) setDetailSale(updated);
+            }
           }
           setPaymentSale(null);
         }}

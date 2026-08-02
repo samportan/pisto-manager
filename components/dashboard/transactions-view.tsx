@@ -41,18 +41,24 @@ export function TransactionsView() {
 
   const { accounts, isLoading: accountsLoading } = useAccounts();
   const { categories, isLoading: categoriesLoading } = useCategories();
+  const searchTokens = React.useMemo(() => searchTokensFromQuery(search), [search]);
+  const searchActive = searchTokens.length > 0;
+
+  const monthRange = React.useMemo(() => {
+    const from = new Date(cursor.year, cursor.month, 1);
+    const to = new Date(cursor.year, cursor.month + 1, 0, 23, 59, 59, 999);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }, [cursor.year, cursor.month]);
+
   const {
     transactions,
     isLoading: txLoading,
     deleteTransaction,
     isDeleting,
-  } = useTransactions();
+  } = useTransactions(searchActive ? { recentMonths: 60 } : monthRange);
 
   const live = isSupabaseConfigured();
   const loadingLists = live && (accountsLoading || categoriesLoading || txLoading);
-
-  const searchTokens = React.useMemo(() => searchTokensFromQuery(search), [search]);
-  const searchActive = searchTokens.length > 0;
 
   const monthTransactions = React.useMemo(() => {
     return transactions.filter((tx) =>

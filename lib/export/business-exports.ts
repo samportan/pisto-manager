@@ -1,8 +1,12 @@
 import type { Contact } from "@/lib/db/contacts";
+import { getContactsByOrgId } from "@/lib/db/contacts";
 import { getPurchaseItemsByOrgId, getSaleItemsByOrgId } from "@/lib/db/export-data";
-import type { Product } from "@/lib/db/products";
-import type { PurchaseWithMeta } from "@/lib/db/purchases";
-import type { SaleWithMeta } from "@/lib/db/sales";
+import { getProductsByOrgId, type Product } from "@/lib/db/products";
+import {
+  getPurchasesHeadersByOrgId,
+  type PurchaseWithMeta,
+} from "@/lib/db/purchases";
+import { getSalesHeadersByOrgId, type SaleWithMeta } from "@/lib/db/sales";
 import type { ProductSalesRank } from "@/lib/analytics/business-products";
 import { downloadWorkbook, todayFilename, type SheetRow } from "@/lib/export/excel";
 import { formatDateForExport } from "@/lib/timezone";
@@ -15,6 +19,14 @@ function contactMap(contacts: Contact[]): ContactMap {
 
 function dateOnly(value: string): string {
   return formatDateForExport(value);
+}
+
+function countById(ids: string[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const id of ids) {
+    m.set(id, (m.get(id) ?? 0) + 1);
+  }
+  return m;
 }
 
 export function productsToRows(products: Product[]): SheetRow[] {
@@ -128,38 +140,94 @@ export async function buildProductsWorkbook(products: Product[], sheetName: stri
   return [{ name: sheetName, rows: productsToRows(products) }];
 }
 
-export async function buildSalesWorkbook(
+export async function buildSalesWorkbookOnDemand(
   orgId: string,
-  sales: SaleWithMeta[],
   contacts: Contact[],
   labels: { sales: string; saleLines: string }
 ) {
-  const saleLines = orgId ? await getSaleItemsByOrgId(orgId) : [];
+  const [headers, saleLines] = await Promise.all([
+    getSalesHeadersByOrgId(orgId),
+    getSaleItemsByOrgId(orgId),
+  ]);
+  const lineCounts = countById(saleLines.map((l) => l.sale_id));
+  const sales: SaleWithMeta[] = headers.map((s) => ({
+    ...s,
+    line_count: lineCounts.get(s.id) ?? 0,
+    top_products: [],
+    items_preview: "",
+  }));
   return [
     { name: labels.sales, rows: salesToRows(sales, contacts) },
     { name: labels.saleLines, rows: saleLinesToRows(saleLines, contacts) },
   ];
 }
 
-export async function buildPurchasesWorkbook(
+/** @deprecated Use buildSalesWorkbookOnDemand */
+export async function buildSalesWorkbook(
   orgId: string,
-  purchases: PurchaseWithMeta[],
+  sales: SaleWithMeta[],
+  contacts: Contact[],
+  labels: { sales: string; saleLines: string }
+) {
+  if (sales.length === 0) {
+    return buildSalesWorkbookOnDemand(orgId, contacts, labels);
+  }
+  const saleLines = orgId ? await getSaleItemsByOrgId(orgId) : [];
+  const lineCounts = countById(saleLines.map((l) => l.sale_id));
+  const withCounts = sales.map((s) => ({
+    ...s,
+    line_count: s.line_count || lineCounts.get(s.id) || 0,
+  }));
+  return [
+    { name: labels.sales, rows: salesToRows(withCounts, contacts) },
+    { name: labels.saleLines, rows: saleLinesToRows(saleLines, contacts) },
+  ];
+}
+
+export async function buildPurchasesWorkbookOnDemand(
+  orgId: string,
   contacts: Contact[],
   labels: { purchases: string; purchaseLines: string }
 ) {
-  const purchaseLines = orgId ? await getPurchaseItemsByOrgId(orgId) : [];
+  const [headers, purchaseLines] = await Promise.all([
+    getPurchasesHeadersByOrgId(orgId),
+    getPurchaseItemsByOrgId(orgId),
+  ]);
+  const lineCounts = countById(purchaseLines.map((l) => l.purchase_id));
+  const purchases: PurchaseWithMeta[] = headers.map((p) => ({
+    ...p,
+    line_count: lineCounts.get(p.id) ?? 0,
+  }));
   return [
     { name: labels.purchases, rows: purchasesToRows(purchases, contacts) },
     { name: labels.purchaseLines, rows: purchaseLinesToRows(purchaseLines, contacts) },
   ];
 }
 
-export async function buildFullBusinessWorkbook(args: {
+/** @deprecated Use buildPurchasesWorkbookOnDemand */
+export async function buildPurchasesWorkbook(
+  orgId: string,
+  purchases: PurchaseWithMeta[],
+  contacts: Contact[],
+  labels: { purchases: string; purchaseLines: string }
+) {
+  if (purchases.length === 0) {
+    return buildPurchasesWorkbookOnDemand(orgId, contacts, labels);
+  }
+  const purchaseLines = orgId ? await getPurchaseItemsByOrgId(orgId) : [];
+  const lineCounts = countById(purchaseLines.map((l) => l.purchase_id));
+  const withCounts = purchases.map((p) => ({
+    ...p,
+    line_count: p.line_count || lineCounts.get(p.id) || 0,
+  }));
+  return [
+    { name: labels.purchases, rows: purchasesToRows(withCounts, contacts) },
+    { name: labels.purchaseLines, rows: purchaseLinesToRows(purchaseLines, contacts) },
+  ];
+}
+
+export async function buildFullBusinessWorkbookOnDemand(args: {
   orgId: string;
-  products: Product[];
-  sales: SaleWithMeta[];
-  purchases: PurchaseWithMeta[];
-  contacts: Contact[];
   ranking: ProductSalesRank[];
   labels: {
     products: string;
@@ -170,21 +238,38 @@ export async function buildFullBusinessWorkbook(args: {
     performance: string;
   };
 }) {
-  const [saleLines, purchaseLines] = args.orgId
-    ? await Promise.all([
-        getSaleItemsByOrgId(args.orgId),
-        getPurchaseItemsByOrgId(args.orgId),
-      ])
-    : [[], []];
+  const [products, contacts, saleHeaders, purchaseHeaders, saleLines, purchaseLines] =
+    await Promise.all([
+      getProductsByOrgId(args.orgId),
+      getContactsByOrgId(args.orgId),
+      getSalesHeadersByOrgId(args.orgId),
+      getPurchasesHeadersByOrgId(args.orgId),
+      getSaleItemsByOrgId(args.orgId),
+      getPurchaseItemsByOrgId(args.orgId),
+    ]);
+
+  const saleLineCounts = countById(saleLines.map((l) => l.sale_id));
+  const purchaseLineCounts = countById(purchaseLines.map((l) => l.purchase_id));
+
+  const sales: SaleWithMeta[] = saleHeaders.map((s) => ({
+    ...s,
+    line_count: saleLineCounts.get(s.id) ?? 0,
+    top_products: [],
+    items_preview: "",
+  }));
+  const purchases: PurchaseWithMeta[] = purchaseHeaders.map((p) => ({
+    ...p,
+    line_count: purchaseLineCounts.get(p.id) ?? 0,
+  }));
 
   return [
-    { name: args.labels.products, rows: productsToRows(args.products) },
-    { name: args.labels.sales, rows: salesToRows(args.sales, args.contacts) },
-    { name: args.labels.saleLines, rows: saleLinesToRows(saleLines, args.contacts) },
-    { name: args.labels.purchases, rows: purchasesToRows(args.purchases, args.contacts) },
+    { name: args.labels.products, rows: productsToRows(products) },
+    { name: args.labels.sales, rows: salesToRows(sales, contacts) },
+    { name: args.labels.saleLines, rows: saleLinesToRows(saleLines, contacts) },
+    { name: args.labels.purchases, rows: purchasesToRows(purchases, contacts) },
     {
       name: args.labels.purchaseLines,
-      rows: purchaseLinesToRows(purchaseLines, args.contacts),
+      rows: purchaseLinesToRows(purchaseLines, contacts),
     },
     { name: args.labels.performance, rows: performanceToRows(args.ranking) },
   ];

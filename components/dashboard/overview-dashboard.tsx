@@ -66,7 +66,7 @@ export function OverviewDashboard() {
     deleteTransaction,
     isDeleting,
     deleteError,
-  } = useTransactions();
+  } = useTransactions({ recentMonths: 8 });
   const {
     summary,
     isLoading: summaryLoading,

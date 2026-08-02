@@ -11,25 +11,13 @@ import { DataTable } from "@/components/business/data-table";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useContacts } from "@/hooks/useContacts";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
-import { useProductInsights } from "@/hooks/useProductInsights";
-import { useProducts } from "@/hooks/useProducts";
-import { usePurchases } from "@/hooks/usePurchases";
-import { useSales } from "@/hooks/useSales";
+import { useProductInsightsAgg } from "@/hooks/useBusinessAnalytics";
 import { useT } from "@/hooks/useTranslations";
+import type { InsightsPeriod } from "@/lib/analytics/shared";
+import type { ProductSalesRank } from "@/lib/analytics/business-products";
 import {
-  getDeadStockProducts,
-  getInventoryKpis,
-  getPeriodSalesKpis,
-  getProductSalesRanking,
-  getTopProductsByRevenue,
-  getTopProductsByUnits,
-  type InsightsPeriod,
-  type ProductSalesRank,
-} from "@/lib/analytics/business-products";
-import {
-  buildFullBusinessWorkbook,
+  buildFullBusinessWorkbookOnDemand,
   downloadWorkbook,
   todayFilename,
 } from "@/lib/export/business-exports";
@@ -40,30 +28,24 @@ export function ProductInsightsView() {
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const [period, setPeriod] = React.useState<InsightsPeriod>("this_month");
   const [exporting, setExporting] = React.useState(false);
-
-  const { products, isLoading: productsLoading } = useProducts();
-  const { saleItems, isLoading: insightsLoading } = useProductInsights();
-  const { sales, isLoading: salesLoading } = useSales();
-  const { purchases, isLoading: purchasesLoading } = usePurchases();
-  const { contacts } = useContacts();
   const { activeOrgId } = useActiveOrganization();
-  const isLoading = productsLoading || insightsLoading;
+  const { data, isLoading } = useProductInsightsAgg(period);
 
-  const inventory = React.useMemo(() => getInventoryKpis(products), [products]);
-  const periodKpis = React.useMemo(
-    () => getPeriodSalesKpis(saleItems, period),
-    [saleItems, period]
-  );
-  const ranking = React.useMemo(
-    () => getProductSalesRanking(saleItems, products, period),
-    [saleItems, products, period]
-  );
-  const topRevenue = React.useMemo(() => getTopProductsByRevenue(ranking, 5), [ranking]);
-  const topUnits = React.useMemo(() => getTopProductsByUnits(ranking, 5), [ranking]);
-  const deadStock = React.useMemo(
-    () => getDeadStockProducts(products, saleItems, period),
-    [products, saleItems, period]
-  );
+  const inventory = data?.inventory;
+  const periodKpis = data?.periodSales;
+  const ranking: ProductSalesRank[] = (data?.ranking ?? []).map((r) => ({
+    productId: r.productId,
+    productName: r.productName,
+    unitsSold: r.unitsSold,
+    revenue: r.revenue,
+    estimatedMargin: r.estimatedMargin,
+    stock: r.stock,
+    lowStock: r.lowStock,
+    outOfStock: r.outOfStock,
+  }));
+  const topRevenue = ranking.slice(0, 5);
+  const topUnits = [...ranking].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
+  const deadStockCount = data?.deadStockCount ?? 0;
 
   const periodOptions: { value: InsightsPeriod; label: string }[] = [
     { value: "today", label: t("business.periodToday") },
@@ -123,14 +105,11 @@ export function ProductInsightsView() {
   );
 
   const handleExportAll = async () => {
+    if (!activeOrgId) return;
     setExporting(true);
     try {
-      const sheets = await buildFullBusinessWorkbook({
-        orgId: activeOrgId ?? "",
-        products,
-        sales,
-        purchases,
-        contacts,
+      const sheets = await buildFullBusinessWorkbookOnDemand({
+        orgId: activeOrgId,
         ranking,
         labels: {
           products: t("business.sheetProducts"),
@@ -156,7 +135,7 @@ export function ProductInsightsView() {
           actions={
             <ExportExcelButton
               label={t("business.exportAll")}
-              isExporting={exporting || salesLoading || purchasesLoading}
+              isExporting={exporting}
               onExport={handleExportAll}
               icon={Download}
             />
@@ -181,7 +160,7 @@ export function ProductInsightsView() {
           {t("business.inventorySection")}
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {isLoading ? (
+          {isLoading || !inventory ? (
             <>
               <StatCardSkeleton />
               <StatCardSkeleton />
@@ -209,7 +188,7 @@ export function ProductInsightsView() {
           {t("business.salesSection")}
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {isLoading ? (
+          {isLoading || !periodKpis ? (
             <>
               <StatCardSkeleton />
               <StatCardSkeleton />
@@ -224,7 +203,7 @@ export function ProductInsightsView() {
                 title={t("business.estimatedMargin")}
                 value={fmt(periodKpis.estimatedMargin)}
               />
-              <StatCard title={t("business.deadStock")} value={String(deadStock.length)} />
+              <StatCard title={t("business.deadStock")} value={String(deadStockCount)} />
             </>
           )}
         </div>

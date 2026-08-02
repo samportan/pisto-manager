@@ -41,6 +41,8 @@ function useInvalidatePurchases() {
   return () => {
     if (!orgId) return;
     void queryClient.invalidateQueries({ queryKey: ["purchases", orgId] });
+    void queryClient.invalidateQueries({ queryKey: ["business-overview", orgId] });
+    void queryClient.invalidateQueries({ queryKey: ["product-insights-agg", orgId] });
   };
 }
 
@@ -54,17 +56,18 @@ async function refetchProductsIfNeeded(
   }
 }
 
-export function usePurchases(opts?: ListPurchasesOptions) {
+export function usePurchases(opts?: ListPurchasesOptions & { fetchList?: boolean }) {
   const queryClient = useQueryClient();
   const { userId, sessionReady } = useAuthUserId();
   const includeDeleted = opts?.includeDeleted ?? false;
+  const fetchList = opts?.fetchList ?? false;
   const orgId = usePurchasesOrgId();
   const invalidate = useInvalidatePurchases();
 
   const query = useQuery({
     queryKey: orgId ? purchasesKeys.all(orgId, opts) : ["purchases", "idle"],
     queryFn: () => getPurchasesByOrgId(orgId!, { includeDeleted }),
-    enabled: sessionReady && !!userId && !!orgId,
+    enabled: sessionReady && !!userId && !!orgId && fetchList,
   });
 
   const createMutation = useMutation({

@@ -9,59 +9,37 @@ import { PageHeader } from "@/components/business/page-header";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useContacts } from "@/hooks/useContacts";
-import { useProductInsights } from "@/hooks/useProductInsights";
-import { useOrgSalePayments } from "@/hooks/useSalePayments";
-import { useSales } from "@/hooks/useSales";
+import { useSaleInsights } from "@/hooks/useBusinessAnalytics";
 import { useT } from "@/hooks/useTranslations";
-import {
-  getCustomerSalesRanking,
-  getPaymentMethodBreakdown,
-  getPeriodSaleKpis,
-  getSalesByDay,
-  getTopCustomersByRevenue,
-  getTopDaysByRevenue,
-  type CustomerSalesRank,
-  type InsightsPeriod,
-} from "@/lib/analytics/business-sales";
+import type { InsightsPeriod } from "@/lib/analytics/shared";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import type { PaymentMethod } from "@/lib/db/sales";
+
+type CustomerSalesRank = {
+  customerId: string | null;
+  customerName: string;
+  saleCount: number;
+  revenue: number;
+};
 
 export function SaleInsightsView() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const [period, setPeriod] = React.useState<InsightsPeriod>("this_month");
+  const walkInLabel = t("business.walkIn");
+  const { data, isLoading } = useSaleInsights(period, walkInLabel);
 
-  const { sales, isLoading: salesLoading } = useSales();
-  const { payments, isLoading: paymentsLoading } = useOrgSalePayments();
-  const { saleItems, isLoading: insightsLoading } = useProductInsights();
-  const { contacts } = useContacts();
-  const isLoading = salesLoading || insightsLoading || paymentsLoading;
-
-  const contactNames = React.useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of contacts) m.set(c.id, c.name);
-    return m;
-  }, [contacts]);
-
-  const periodKpis = React.useMemo(
-    () => getPeriodSaleKpis(sales, saleItems, period, payments),
-    [sales, saleItems, period, payments]
-  );
-  const paymentBreakdown = React.useMemo(
-    () => getPaymentMethodBreakdown(sales, period),
-    [sales, period]
-  );
-  const customerRanking = React.useMemo(
-    () => getCustomerSalesRanking(sales, contactNames, t("business.walkIn"), period),
-    [sales, contactNames, period, t]
-  );
-  const topCustomers = React.useMemo(
-    () => getTopCustomersByRevenue(customerRanking, 5),
-    [customerRanking]
-  );
-  const dailyRevenue = React.useMemo(() => getSalesByDay(sales, period), [sales, period]);
-  const topDays = React.useMemo(() => getTopDaysByRevenue(dailyRevenue, 5), [dailyRevenue]);
+  const periodKpis = data?.kpis;
+  const paymentBreakdown = data?.paymentMethods ?? [];
+  const customerRanking = (data?.customerRanking ?? []) as CustomerSalesRank[];
+  const topCustomers = (data?.topCustomers ?? []).map((r) => ({
+    name: r.customerName,
+    total: r.revenue,
+  }));
+  const topDays = (data?.topDays ?? []).map((d) => ({
+    name: d.date,
+    total: d.revenue,
+  }));
 
   const periodOptions: { value: InsightsPeriod; label: string }[] = [
     { value: "today", label: t("business.periodToday") },
@@ -122,7 +100,7 @@ export function SaleInsightsView() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {isLoading ? (
+          {isLoading || !periodKpis ? (
             <>
               <StatCardSkeleton />
               <StatCardSkeleton />

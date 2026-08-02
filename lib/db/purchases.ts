@@ -1,6 +1,7 @@
 import { localDayEndUtcIso, localDayStartUtcIso } from "@/lib/timezone";
 import { createClient } from "../client";
 import type { PaginatedResult } from "./pagination";
+import { fetchAllPages } from "./query-chunks";
 
 export type { PaginatedResult };
 
@@ -61,41 +62,47 @@ function normalizePurchase(p: Purchase): Purchase {
   };
 }
 
-async function attachPurchaseMeta(
-  purchases: Purchase[],
-  supabase: ReturnType<typeof createClient>
-): Promise<PurchaseWithMeta[]> {
-  if (purchases.length === 0) return [];
-  const ids = purchases.map((p) => p.id);
-  const { data: rows, error: cErr } = await supabase
-    .from("purchase_items")
-    .select("purchase_id")
-    .in("purchase_id", ids)
-    .is("deleted_at", null);
-  if (cErr) throw cErr;
-  const countBy = new Map<string, number>();
-  for (const r of rows ?? []) {
-    const pid = (r as { purchase_id: string }).purchase_id;
-    countBy.set(pid, (countBy.get(pid) ?? 0) + 1);
-  }
-  return purchases.map((p) => ({
-    ...normalizePurchase(p),
-    line_count: countBy.get(p.id) ?? 0,
-  }));
+type NestedPurchaseItem = { id: string; deleted_at: string | null };
+type PurchaseRowWithItems = Purchase & {
+  purchase_items?: NestedPurchaseItem[] | null;
+};
+
+function purchaseWithMetaFromNested(row: PurchaseRowWithItems): PurchaseWithMeta {
+  const items = (row.purchase_items ?? []).filter((i) => i.deleted_at == null);
+  const { purchase_items: _items, ...purchase } = row;
+  return {
+    ...normalizePurchase(purchase),
+    line_count: items.length,
+  };
 }
 
+/** Headers only — for Excel export. */
+export async function getPurchasesHeadersByOrgId(
+  orgId: string,
+  opts?: ListPurchasesOptions
+): Promise<Purchase[]> {
+  return fetchAllPages(async (from, to) => {
+    const supabase = createClient();
+    let q = supabase.from("purchases").select("*").eq("organization_id", orgId);
+    if (!opts?.includeDeleted) {
+      q = q.is("deleted_at", null);
+    }
+    const { data: page, error } = await q
+      .order("date", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return ((page ?? []) as Purchase[]).map(normalizePurchase);
+  });
+}
+
+/** @deprecated Prefer listPurchasesPaginated. Kept for export helpers. */
 export async function getPurchasesByOrgId(
   orgId: string,
   opts?: ListPurchasesOptions
 ): Promise<PurchaseWithMeta[]> {
-  const supabase = createClient();
-  let q = supabase.from("purchases").select("*").eq("organization_id", orgId);
-  if (!opts?.includeDeleted) {
-    q = q.is("deleted_at", null);
-  }
-  const { data, error } = await q.order("date", { ascending: false });
-  if (error) throw error;
-  return attachPurchaseMeta((data ?? []) as Purchase[], supabase);
+  const headers = await getPurchasesHeadersByOrgId(orgId, opts);
+  return headers.map((p) => ({ ...normalizePurchase(p), line_count: 0 }));
 }
 
 export async function getPurchaseById(id: string): Promise<Purchase | null> {
@@ -122,7 +129,7 @@ export async function listPurchasesPaginated(
 
   let q = supabase
     .from("purchases")
-    .select("*", { count: "exact" })
+    .select("*, purchase_items(id, deleted_at)", { count: "exact" })
     .eq("organization_id", orgId)
     .is("deleted_at", null);
 
@@ -144,22 +151,22 @@ export async function listPurchasesPaginated(
 
   const { data, error, count } = await q
     .order("date", { ascending: false })
+    .order("id", { ascending: false })
     .range(from, to);
   if (error) throw error;
 
-  let purchases = (data ?? []) as Purchase[];
+  let rows = (data ?? []) as unknown as PurchaseRowWithItems[];
   if (filters?.search?.trim()) {
     const term = filters.search.trim().toLowerCase();
-    purchases = purchases.filter(
+    rows = rows.filter(
       (p) =>
         p.notes?.toLowerCase().includes(term) ||
         String(p.total).includes(term)
     );
   }
 
-  const withMeta = await attachPurchaseMeta(purchases, supabase);
   return {
-    data: withMeta,
+    data: rows.map(purchaseWithMetaFromNested),
     total: count ?? 0,
     page,
     pageSize,

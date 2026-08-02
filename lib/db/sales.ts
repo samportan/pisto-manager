@@ -1,6 +1,7 @@
 import { localDayEndUtcIso, localDayStartUtcIso } from "@/lib/timezone";
 import { createClient } from "../client";
 import type { PaginatedResult } from "./pagination";
+import { fetchAllPages } from "./query-chunks";
 
 export type { PaginatedResult };
 
@@ -54,77 +55,81 @@ export type CustomerBalance = {
   open_sale_count: number;
 };
 
-async function attachSaleMeta(
-  sales: Sale[],
-  supabase: ReturnType<typeof createClient>
-): Promise<SaleWithMeta[]> {
-  if (sales.length === 0) return [];
-  const ids = sales.map((s) => s.id);
+type NestedSaleItem = {
+  quantity: number;
+  deleted_at: string | null;
+  products: { name: string } | null;
+};
 
-  const { data: countRows, error: cErr } = await supabase
-    .from("sale_items")
-    .select("sale_id")
-    .in("sale_id", ids)
-    .is("deleted_at", null);
-  if (cErr) throw cErr;
+type SaleRowWithItems = Sale & {
+  sale_items?: NestedSaleItem[] | null;
+};
 
-  const countBy = new Map<string, number>();
-  for (const r of countRows ?? []) {
-    const sid = (r as { sale_id: string }).sale_id;
-    countBy.set(sid, (countBy.get(sid) ?? 0) + 1);
-  }
+function normalizeSaleBase(s: Sale): Omit<
+  SaleWithMeta,
+  "line_count" | "items_preview" | "top_products"
+> {
+  return {
+    ...s,
+    subtotal: Number(s.subtotal ?? s.total),
+    card_surcharge_amount: Number(s.card_surcharge_amount ?? 0),
+    apply_card_surcharge: s.apply_card_surcharge ?? false,
+    payment_method: (s.payment_method ?? "cash") as PaymentMethod,
+    payment_status: (s.payment_status ?? "paid") as PaymentStatus,
+    amount_paid: Number(s.amount_paid ?? s.total),
+    balance_due: Number(s.balance_due ?? 0),
+  };
+}
 
-  const { data: itemRows, error: iErr } = await supabase
-    .from("sale_items")
-    .select("sale_id, quantity, products(name)")
-    .in("sale_id", ids)
-    .is("deleted_at", null);
-  if (iErr) throw iErr;
+function saleWithMetaFromNested(row: SaleRowWithItems): SaleWithMeta {
+  const items = (row.sale_items ?? []).filter((i) => i.deleted_at == null);
+  const products: SaleItemPreview[] = items.map((i) => ({
+    name: i.products?.name ?? "?",
+    qty: Number(i.quantity),
+  }));
+  const previewParts = products.slice(0, 3).map((p) => `${p.name} x${p.qty}`);
+  const extra = products.length > 3 ? `, +${products.length - 3}` : "";
+  const { sale_items: _items, ...sale } = row;
+  return {
+    ...normalizeSaleBase(sale),
+    line_count: products.length,
+    top_products: products.slice(0, 3),
+    items_preview: previewParts.join(", ") + extra,
+  };
+}
 
-  const itemsBySale = new Map<string, SaleItemPreview[]>();
-  for (const row of itemRows ?? []) {
-    const r = row as unknown as {
-      sale_id: string;
-      quantity: number;
-      products: { name: string } | null;
-    };
-    const list = itemsBySale.get(r.sale_id) ?? [];
-    list.push({ name: r.products?.name ?? "?", qty: Number(r.quantity) });
-    itemsBySale.set(r.sale_id, list);
-  }
-
-  return sales.map((s) => {
-    const products = itemsBySale.get(s.id) ?? [];
-    const previewParts = products.slice(0, 3).map((p) => `${p.name} x${p.qty}`);
-    const extra = products.length > 3 ? `, +${products.length - 3}` : "";
-    return {
-      ...s,
-      subtotal: Number(s.subtotal ?? s.total),
-      card_surcharge_amount: Number(s.card_surcharge_amount ?? 0),
-      apply_card_surcharge: s.apply_card_surcharge ?? false,
-      payment_method: (s.payment_method ?? "cash") as PaymentMethod,
-      payment_status: (s.payment_status ?? "paid") as PaymentStatus,
-      amount_paid: Number(s.amount_paid ?? s.total),
-      balance_due: Number(s.balance_due ?? 0),
-      line_count: countBy.get(s.id) ?? 0,
-      top_products: products.slice(0, 3),
-      items_preview: previewParts.join(", ") + extra,
-    };
+/** Headers only — for Excel export. line_count filled from sale lines. */
+export async function getSalesHeadersByOrgId(
+  orgId: string,
+  opts?: ListSalesOptions
+): Promise<Sale[]> {
+  return fetchAllPages(async (from, to) => {
+    const supabase = createClient();
+    let q = supabase.from("sales").select("*").eq("organization_id", orgId);
+    if (!opts?.includeDeleted) {
+      q = q.is("deleted_at", null);
+    }
+    const { data: page, error } = await q
+      .order("date", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return ((page ?? []) as Sale[]).map((s) => normalizeSaleBase(s) as Sale);
   });
 }
 
+/** @deprecated Prefer listSalesPaginated or analytics RPCs. Kept for export helpers. */
 export async function getSalesByOrgId(
   orgId: string,
   opts?: ListSalesOptions
 ): Promise<SaleWithMeta[]> {
-  const supabase = createClient();
-  let q = supabase.from("sales").select("*").eq("organization_id", orgId);
-  if (!opts?.includeDeleted) {
-    q = q.is("deleted_at", null);
-  }
-  const { data, error } = await q.order("date", { ascending: false });
-  if (error) throw error;
-  return attachSaleMeta((data ?? []) as Sale[], supabase);
+  const headers = await getSalesHeadersByOrgId(orgId, opts);
+  return headers.map((s) => ({
+    ...normalizeSaleBase(s),
+    line_count: 0,
+    top_products: [],
+    items_preview: "",
+  }));
 }
 
 export async function listSalesPaginated(
@@ -139,7 +144,7 @@ export async function listSalesPaginated(
 
   let q = supabase
     .from("sales")
-    .select("*", { count: "exact" })
+    .select("*, sale_items(quantity, deleted_at, products(name))", { count: "exact" })
     .eq("organization_id", orgId)
     .is("deleted_at", null);
 
@@ -161,22 +166,22 @@ export async function listSalesPaginated(
 
   const { data, error, count } = await q
     .order("date", { ascending: false })
+    .order("id", { ascending: false })
     .range(from, to);
   if (error) throw error;
 
-  let sales = (data ?? []) as Sale[];
+  let rows = (data ?? []) as unknown as SaleRowWithItems[];
   if (filters?.search?.trim()) {
     const term = filters.search.trim().toLowerCase();
-    sales = sales.filter(
+    rows = rows.filter(
       (s) =>
         s.notes?.toLowerCase().includes(term) ||
         String(s.total).includes(term)
     );
   }
 
-  const withMeta = await attachSaleMeta(sales, supabase);
   return {
-    data: withMeta,
+    data: rows.map(saleWithMetaFromNested),
     total: count ?? 0,
     page,
     pageSize,
@@ -185,28 +190,19 @@ export async function listSalesPaginated(
 
 export async function getCustomerBalances(orgId: string): Promise<CustomerBalance[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("sales")
-    .select("customer_id, balance_due")
-    .eq("organization_id", orgId)
-    .is("deleted_at", null)
-    .neq("payment_status", "paid")
-    .not("customer_id", "is", null);
+  const { data, error } = await supabase.rpc("get_customer_balances_agg", {
+    p_organization_id: orgId,
+  });
   if (error) throw error;
-
-  const byCustomer = new Map<string, CustomerBalance>();
-  for (const row of data ?? []) {
-    const r = row as { customer_id: string; balance_due: number };
-    const existing = byCustomer.get(r.customer_id) ?? {
-      customer_id: r.customer_id,
-      balance_due: 0,
-      open_sale_count: 0,
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      customer_id: String(r.customer_id ?? ""),
+      balance_due: Number(r.balance_due ?? 0),
+      open_sale_count: Number(r.open_sale_count ?? 0),
     };
-    existing.balance_due += Number(r.balance_due);
-    existing.open_sale_count += 1;
-    byCustomer.set(r.customer_id, existing);
-  }
-  return [...byCustomer.values()];
+  });
 }
 
 export type OpenCustomerSale = Pick<

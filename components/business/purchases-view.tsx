@@ -37,13 +37,16 @@ import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useProducts } from "@/hooks/useProducts";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { usePurchasePayments } from "@/hooks/usePurchasePayments";
-import { purchasesKeys, useDeletePurchase, usePurchasesPaginated } from "@/hooks/usePurchases";
+import { useDeletePurchase, usePurchasesPaginated } from "@/hooks/usePurchases";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import { formatMoneyDisplay } from "@/lib/format-money";
-import { buildPurchasesWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import {
-  getPurchasesByOrgId,
+  buildPurchasesWorkbookOnDemand,
+  downloadWorkbook,
+  todayFilename,
+} from "@/lib/export/business-exports";
+import {
   type PurchasePaymentMethod,
   type PurchasePaymentStatus,
   type PurchaseReceiptStatus,
@@ -615,14 +618,14 @@ export function PurchasesView() {
                   if (!activeOrgId) return;
                   setExporting(true);
                   try {
-                    const purchases = await queryClient.fetchQuery({
-                      queryKey: purchasesKeys.all(activeOrgId),
-                      queryFn: () => getPurchasesByOrgId(activeOrgId),
-                    });
-                    const sheets = await buildPurchasesWorkbook(activeOrgId, purchases, contacts, {
-                      purchases: t("business.sheetPurchases"),
-                      purchaseLines: t("business.sheetPurchaseLines"),
-                    });
+                    const sheets = await buildPurchasesWorkbookOnDemand(
+                      activeOrgId,
+                      contacts,
+                      {
+                        purchases: t("business.sheetPurchases"),
+                        purchaseLines: t("business.sheetPurchaseLines"),
+                      }
+                    );
                     downloadWorkbook(sheets, todayFilename("compras"));
                   } finally {
                     setExporting(false);

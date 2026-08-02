@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { fetchAllPages } from "./query-chunks";
 
 export type ProductInsightSaleItem = {
   id: string;
@@ -42,19 +43,22 @@ export async function getSaleItemsForInsightsByOrgId(
   orgId: string
 ): Promise<ProductInsightSaleItem[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("sale_items")
-    .select(
-      "id, product_id, quantity, line_total, sale_id, sales!inner(date, organization_id, deleted_at, payment_status), products(name, cost_price, stock, min_stock, is_active, deleted_at)"
-    )
-    .eq("sales.organization_id", orgId)
-    .is("deleted_at", null)
-    .is("sales.deleted_at", null)
-    .order("id", { ascending: true });
+  const data = await fetchAllPages(async (from, to) => {
+    const { data: page, error } = await supabase
+      .from("sale_items")
+      .select(
+        "id, product_id, quantity, line_total, sale_id, sales!inner(date, organization_id, deleted_at, payment_status), products(name, cost_price, stock, min_stock, is_active, deleted_at)"
+      )
+      .eq("sales.organization_id", orgId)
+      .is("deleted_at", null)
+      .is("sales.deleted_at", null)
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (page ?? []) as unknown as SaleItemRow[];
+  });
 
-  if (error) throw error;
-
-  return ((data ?? []) as unknown as SaleItemRow[]).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     product_id: row.product_id,
     quantity: Number(row.quantity),

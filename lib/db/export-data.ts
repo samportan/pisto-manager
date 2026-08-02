@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { fetchAllPages } from "./query-chunks";
 
 export type ExportSaleLine = {
   id: string;
@@ -64,19 +65,22 @@ type PurchaseItemExportRow = {
 
 export async function getSaleItemsByOrgId(orgId: string): Promise<ExportSaleLine[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("sale_items")
-    .select(
-      "id, sale_id, product_id, quantity, unit_price, line_total, sales!inner(date, customer_id, organization_id, deleted_at), products(name, sku)"
-    )
-    .eq("sales.organization_id", orgId)
-    .is("deleted_at", null)
-    .is("sales.deleted_at", null)
-    .order("id", { ascending: true });
+  const data = await fetchAllPages(async (from, to) => {
+    const { data: page, error } = await supabase
+      .from("sale_items")
+      .select(
+        "id, sale_id, product_id, quantity, unit_price, line_total, sales!inner(date, customer_id, organization_id, deleted_at), products(name, sku)"
+      )
+      .eq("sales.organization_id", orgId)
+      .is("deleted_at", null)
+      .is("sales.deleted_at", null)
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (page ?? []) as unknown as SaleItemExportRow[];
+  });
 
-  if (error) throw error;
-
-  return ((data ?? []) as unknown as SaleItemExportRow[]).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     sale_id: row.sale_id,
     sale_date: row.sales.date,
@@ -94,19 +98,22 @@ export async function getPurchaseItemsByOrgId(
   orgId: string
 ): Promise<ExportPurchaseLine[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
-    .from("purchase_items")
-    .select(
-      "id, purchase_id, product_id, quantity, quantity_ordered, quantity_received, unit_cost, line_total, purchases!inner(date, supplier_id, organization_id, deleted_at), products(name, sku)"
-    )
-    .eq("purchases.organization_id", orgId)
-    .is("deleted_at", null)
-    .is("purchases.deleted_at", null)
-    .order("id", { ascending: true });
+  const data = await fetchAllPages(async (from, to) => {
+    const { data: page, error } = await supabase
+      .from("purchase_items")
+      .select(
+        "id, purchase_id, product_id, quantity, quantity_ordered, quantity_received, unit_cost, line_total, purchases!inner(date, supplier_id, organization_id, deleted_at), products(name, sku)"
+      )
+      .eq("purchases.organization_id", orgId)
+      .is("deleted_at", null)
+      .is("purchases.deleted_at", null)
+      .order("id", { ascending: true })
+      .range(from, to);
+    if (error) throw error;
+    return (page ?? []) as unknown as PurchaseItemExportRow[];
+  });
 
-  if (error) throw error;
-
-  return ((data ?? []) as unknown as PurchaseItemExportRow[]).map((row) => ({
+  return data.map((row) => ({
     id: row.id,
     purchase_id: row.purchase_id,
     purchase_date: row.purchases.date,

@@ -1,4 +1,6 @@
 import { createClient } from "../client";
+import { fetchAllPages } from "./query-chunks";
+import type { PaginatedResult } from "./pagination";
 
 export const TRANSACTION_TYPES = ["income", "expense", "transfer"] as const;
 
@@ -29,6 +31,11 @@ export type NewTransactionFormValues = {
   description: string | null;
 };
 
+export type TransactionListOptions = {
+  from?: string;
+  to?: string;
+};
+
 export function transactionToFormValues(tx: Transaction): NewTransactionFormValues {
   return {
     account_id: tx.account_id,
@@ -42,18 +49,49 @@ export function transactionToFormValues(tx: Transaction): NewTransactionFormValu
 }
 
 export async function getTransactionsByUserId(
-  userId: string
-): Promise<Transaction[] | null> {
+  userId: string,
+  opts?: TransactionListOptions
+): Promise<Transaction[]> {
+  return fetchAllPages(async (from, to) => {
+    const supabase = createClient();
+    let q = supabase.from("transactions").select("*").eq("user_id", userId);
+    if (opts?.from) q = q.gte("date", opts.from);
+    if (opts?.to) q = q.lte("date", opts.to);
+    const { data, error } = await q
+      .order("date", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return (data ?? []) as Transaction[];
+  });
+}
+
+export async function listTransactionsPaginated(
+  userId: string,
+  page: number,
+  pageSize: number,
+  opts?: TransactionListOptions
+): Promise<PaginatedResult<Transaction>> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  let q = supabase
     .from("transactions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("date", { ascending: false });
-  if (error) {
-    throw error;
-  }
-  return data as Transaction[] | null;
+    .select("*", { count: "exact" })
+    .eq("user_id", userId);
+  if (opts?.from) q = q.gte("date", opts.from);
+  if (opts?.to) q = q.lte("date", opts.to);
+  const { data, error, count } = await q
+    .order("date", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+  return {
+    data: (data ?? []) as Transaction[],
+    total: count ?? 0,
+    page,
+    pageSize,
+  };
 }
 
 export async function createTransaction(
