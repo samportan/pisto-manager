@@ -32,6 +32,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSaleItems } from "@/hooks/useSaleItems";
 import { useSalePayments } from "@/hooks/useSalePayments";
 import { salesKeys, useDeleteSale, useSalesPaginated } from "@/hooks/useSales";
@@ -269,6 +270,7 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
   const [search, setSearch] = React.useState("");
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [dateFrom, setDateFrom] = React.useState("");
   const [dateTo, setDateTo] = React.useState("");
   const [paymentFilter, setPaymentFilter] = React.useState<PaymentMethod | "all">("all");
@@ -280,14 +282,14 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
 
   const filters = React.useMemo(
     () => ({
-      search: search.trim() || undefined,
+      search: debouncedSearch.trim() || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
       paymentMethod: paymentFilter,
       paymentStatus: statusFilter,
       customerId: customerFilter,
     }),
-    [search, dateFrom, dateTo, paymentFilter, statusFilter, customerFilter]
+    [debouncedSearch, dateFrom, dateTo, paymentFilter, statusFilter, customerFilter]
   );
 
   const { result, isLoading, isPageLoading, isRefreshing } = useSalesPaginated(

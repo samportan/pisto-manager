@@ -1,5 +1,6 @@
 import { localDayEndUtcIso, localDayStartUtcIso } from "@/lib/timezone";
 import { createClient } from "../client";
+import { escapeIlikePattern, ilikeOrPart, inOrPart } from "./list-search";
 import type { PaginatedResult } from "./pagination";
 import { fetchAllPages } from "./query-chunks";
 
@@ -38,7 +39,13 @@ export type NewPurchase = Omit<
 
 export type ListPurchasesOptions = { includeDeleted?: boolean };
 
-export type PurchaseWithMeta = Purchase & { line_count: number };
+export type PurchaseItemPreview = { name: string; qty: number };
+
+export type PurchaseWithMeta = Purchase & {
+  line_count: number;
+  items_preview: string;
+  top_products: PurchaseItemPreview[];
+};
 
 export type PurchasesListFilters = {
   dateFrom?: string;
@@ -62,17 +69,31 @@ function normalizePurchase(p: Purchase): Purchase {
   };
 }
 
-type NestedPurchaseItem = { id: string; deleted_at: string | null };
+type NestedPurchaseItem = {
+  id: string;
+  quantity?: number | null;
+  quantity_ordered?: number | null;
+  deleted_at: string | null;
+  products?: { name: string } | null;
+};
 type PurchaseRowWithItems = Purchase & {
   purchase_items?: NestedPurchaseItem[] | null;
 };
 
 function purchaseWithMetaFromNested(row: PurchaseRowWithItems): PurchaseWithMeta {
   const items = (row.purchase_items ?? []).filter((i) => i.deleted_at == null);
+  const products: PurchaseItemPreview[] = items.map((i) => ({
+    name: i.products?.name ?? "?",
+    qty: Number(i.quantity ?? i.quantity_ordered ?? 0),
+  }));
+  const previewParts = products.slice(0, 3).map((p) => `${p.name} x${p.qty}`);
+  const extra = products.length > 3 ? `, +${products.length - 3}` : "";
   const { purchase_items: _items, ...purchase } = row;
   return {
     ...normalizePurchase(purchase),
-    line_count: items.length,
+    line_count: products.length,
+    top_products: products.slice(0, 3),
+    items_preview: previewParts.join(", ") + extra,
   };
 }
 
@@ -102,7 +123,12 @@ export async function getPurchasesByOrgId(
   opts?: ListPurchasesOptions
 ): Promise<PurchaseWithMeta[]> {
   const headers = await getPurchasesHeadersByOrgId(orgId, opts);
-  return headers.map((p) => ({ ...normalizePurchase(p), line_count: 0 }));
+  return headers.map((p) => ({
+    ...normalizePurchase(p),
+    line_count: 0,
+    top_products: [],
+    items_preview: "",
+  }));
 }
 
 export async function getPurchaseById(id: string): Promise<Purchase | null> {
@@ -117,7 +143,133 @@ export async function getPurchaseById(id: string): Promise<Purchase | null> {
   return data ? normalizePurchase(data as Purchase) : null;
 }
 
-export async function listPurchasesPaginated(
+function isMissingRpcError(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST202" ||
+    msg.includes("could not find the function") ||
+    msg.includes("list_purchases_paginated")
+  );
+}
+
+type ListRpcPayload = {
+  data?: unknown;
+  total?: number;
+  page?: number;
+  page_size?: number;
+};
+
+async function listPurchasesPaginatedViaRpc(
+  orgId: string,
+  page: number,
+  pageSize: number,
+  filters?: PurchasesListFilters
+): Promise<PaginatedResult<PurchaseWithMeta> | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("list_purchases_paginated", {
+    p_organization_id: orgId,
+    p_page: page,
+    p_page_size: pageSize,
+    p_search: filters?.search?.trim() || null,
+    p_date_from: filters?.dateFrom ? localDayStartUtcIso(filters.dateFrom) : null,
+    p_date_to: filters?.dateTo ? localDayEndUtcIso(filters.dateTo) : null,
+    p_receipt_status:
+      filters?.receiptStatus && filters.receiptStatus !== "all"
+        ? filters.receiptStatus
+        : null,
+    p_payment_status:
+      filters?.paymentStatus && filters.paymentStatus !== "all"
+        ? filters.paymentStatus
+        : null,
+    p_payment_method:
+      filters?.paymentMethod && filters.paymentMethod !== "all"
+        ? filters.paymentMethod
+        : null,
+  });
+
+  if (error) {
+    if (isMissingRpcError(error)) return null;
+    throw error;
+  }
+
+  const payload = (data ?? {}) as ListRpcPayload;
+  const rows = (Array.isArray(payload.data) ? payload.data : []) as PurchaseRowWithItems[];
+  return {
+    data: rows.map(purchaseWithMetaFromNested),
+    total: Number(payload.total ?? 0),
+    page: Number(payload.page ?? page),
+    pageSize: Number(payload.page_size ?? pageSize),
+  };
+}
+
+async function resolvePurchaseSearchOrFilter(
+  orgId: string,
+  search: string
+): Promise<string | null> {
+  const supabase = createClient();
+  const term = search.trim();
+  if (!term) return null;
+
+  const pattern = `%${escapeIlikePattern(term)}%`;
+  const [contactsRes, productsRes] = await Promise.all([
+    supabase
+      .from("contacts")
+      .select("id")
+      .eq("organization_id", orgId)
+      .is("deleted_at", null)
+      .ilike("name", pattern)
+      .limit(100),
+    supabase
+      .from("products")
+      .select("id")
+      .eq("organization_id", orgId)
+      .is("deleted_at", null)
+      .or(
+        [
+          ilikeOrPart("name", pattern),
+          ilikeOrPart("sku", pattern),
+          ilikeOrPart("barcode", pattern),
+        ].join(",")
+      )
+      .limit(100),
+  ]);
+  if (contactsRes.error) throw contactsRes.error;
+  if (productsRes.error) throw productsRes.error;
+
+  const supplierIds = (contactsRes.data ?? []).map((r) => String(r.id));
+  const productIds = (productsRes.data ?? []).map((r) => String(r.id));
+
+  let purchaseIds: string[] = [];
+  if (productIds.length > 0) {
+    const { data: itemRows, error: itemsError } = await supabase
+      .from("purchase_items")
+      .select("purchase_id")
+      .in("product_id", productIds)
+      .is("deleted_at", null)
+      .limit(500);
+    if (itemsError) throw itemsError;
+    purchaseIds = Array.from(
+      new Set((itemRows ?? []).map((r) => String(r.purchase_id)))
+    );
+  }
+
+  const parts = [
+    ilikeOrPart("notes", pattern),
+    ilikeOrPart("fees_notes", pattern),
+    inOrPart("supplier_id", supplierIds),
+    inOrPart("id", purchaseIds),
+  ].filter((p): p is string => !!p);
+
+  const asNumber = Number(term);
+  if (Number.isFinite(asNumber) && /^\d+(\.\d+)?$/.test(term)) {
+    parts.push(`total.eq.${asNumber}`);
+  }
+
+  return parts.join(",");
+}
+
+async function listPurchasesPaginatedViaQuery(
   orgId: string,
   page: number,
   pageSize: number,
@@ -129,7 +281,9 @@ export async function listPurchasesPaginated(
 
   let q = supabase
     .from("purchases")
-    .select("*, purchase_items(id, deleted_at)", { count: "exact" })
+    .select("*, purchase_items(id, quantity_ordered, deleted_at, products(name))", {
+      count: "exact",
+    })
     .eq("organization_id", orgId)
     .is("deleted_at", null);
 
@@ -149,28 +303,37 @@ export async function listPurchasesPaginated(
     q = q.eq("payment_method", filters.paymentMethod);
   }
 
+  const search = filters?.search?.trim();
+  if (search) {
+    const orFilter = await resolvePurchaseSearchOrFilter(orgId, search);
+    if (orFilter) q = q.or(orFilter);
+  }
+
   const { data, error, count } = await q
     .order("date", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
   if (error) throw error;
 
-  let rows = (data ?? []) as unknown as PurchaseRowWithItems[];
-  if (filters?.search?.trim()) {
-    const term = filters.search.trim().toLowerCase();
-    rows = rows.filter(
-      (p) =>
-        p.notes?.toLowerCase().includes(term) ||
-        String(p.total).includes(term)
-    );
-  }
-
   return {
-    data: rows.map(purchaseWithMetaFromNested),
+    data: ((data ?? []) as unknown as PurchaseRowWithItems[]).map(purchaseWithMetaFromNested),
     total: count ?? 0,
     page,
     pageSize,
   };
+}
+
+export async function listPurchasesPaginated(
+  orgId: string,
+  page: number,
+  pageSize: number,
+  filters?: PurchasesListFilters
+): Promise<PaginatedResult<PurchaseWithMeta>> {
+  if (filters?.search?.trim()) {
+    const viaRpc = await listPurchasesPaginatedViaRpc(orgId, page, pageSize, filters);
+    if (viaRpc) return viaRpc;
+  }
+  return listPurchasesPaginatedViaQuery(orgId, page, pageSize, filters);
 }
 
 export async function createPurchase(payload: NewPurchase): Promise<Purchase> {
