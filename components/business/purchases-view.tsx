@@ -34,6 +34,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContacts } from "@/hooks/useContacts";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useProducts } from "@/hooks/useProducts";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { usePurchasePayments } from "@/hooks/usePurchasePayments";
@@ -366,6 +367,7 @@ export function PurchasesView() {
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
   const [search, setSearch] = React.useState("");
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [dateFrom, setDateFrom] = React.useState("");
   const [dateTo, setDateTo] = React.useState("");
   const [receiptFilter, setReceiptFilter] = React.useState<PurchaseReceiptStatus | "all">("all");
@@ -380,14 +382,14 @@ export function PurchasesView() {
 
   const filters = React.useMemo(
     () => ({
-      search: search.trim() || undefined,
+      search: debouncedSearch.trim() || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
       receiptStatus: receiptFilter,
       paymentMethod: paymentFilter,
       paymentStatus: statusFilter,
     }),
-    [search, dateFrom, dateTo, receiptFilter, paymentFilter, statusFilter]
+    [debouncedSearch, dateFrom, dateTo, receiptFilter, paymentFilter, statusFilter]
   );
 
   const { result, isLoading, isPageLoading, isRefreshing } = usePurchasesPaginated(
@@ -527,6 +529,9 @@ export function PurchasesView() {
                 <p className="text-xs tabular-nums text-amber-600 dark:text-amber-400">
                   {t("business.balanceDueShort")}: {fmt(Number(p.balance_due))}
                 </p>
+              ) : null}
+              {p.items_preview ? (
+                <p className="line-clamp-2 text-xs text-muted-foreground">{p.items_preview}</p>
               ) : null}
             </div>
           );

@@ -197,6 +197,8 @@ export async function buildPurchasesWorkbookOnDemand(
   const purchases: PurchaseWithMeta[] = headers.map((p) => ({
     ...p,
     line_count: lineCounts.get(p.id) ?? 0,
+    top_products: [],
+    items_preview: "",
   }));
   return [
     { name: labels.purchases, rows: purchasesToRows(purchases, contacts) },
@@ -260,6 +262,8 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
   const purchases: PurchaseWithMeta[] = purchaseHeaders.map((p) => ({
     ...p,
     line_count: purchaseLineCounts.get(p.id) ?? 0,
+    top_products: [],
+    items_preview: "",
   }));
 
   return [

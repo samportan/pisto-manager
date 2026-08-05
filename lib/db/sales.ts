@@ -1,5 +1,6 @@
 import { localDayEndUtcIso, localDayStartUtcIso } from "@/lib/timezone";
 import { createClient } from "../client";
+import { escapeIlikePattern, ilikeOrPart, inOrPart } from "./list-search";
 import type { PaginatedResult } from "./pagination";
 import { fetchAllPages } from "./query-chunks";
 
@@ -132,7 +133,127 @@ export async function getSalesByOrgId(
   }));
 }
 
-export async function listSalesPaginated(
+function isMissingRpcError(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const msg = (error.message ?? "").toLowerCase();
+  return (
+    error.code === "PGRST202" ||
+    msg.includes("could not find the function") ||
+    msg.includes("list_sales_paginated")
+  );
+}
+
+type ListRpcPayload = {
+  data?: unknown;
+  total?: number;
+  page?: number;
+  page_size?: number;
+};
+
+async function listSalesPaginatedViaRpc(
+  orgId: string,
+  page: number,
+  pageSize: number,
+  filters?: SalesListFilters
+): Promise<PaginatedResult<SaleWithMeta> | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("list_sales_paginated", {
+    p_organization_id: orgId,
+    p_page: page,
+    p_page_size: pageSize,
+    p_search: filters?.search?.trim() || null,
+    p_date_from: filters?.dateFrom ? localDayStartUtcIso(filters.dateFrom) : null,
+    p_date_to: filters?.dateTo ? localDayEndUtcIso(filters.dateTo) : null,
+    p_payment_method:
+      filters?.paymentMethod && filters.paymentMethod !== "all"
+        ? filters.paymentMethod
+        : null,
+    p_payment_status:
+      filters?.paymentStatus && filters.paymentStatus !== "all"
+        ? filters.paymentStatus
+        : null,
+    p_customer_id: filters?.customerId ?? null,
+  });
+
+  if (error) {
+    if (isMissingRpcError(error)) return null;
+    throw error;
+  }
+
+  const payload = (data ?? {}) as ListRpcPayload;
+  const rows = (Array.isArray(payload.data) ? payload.data : []) as SaleRowWithItems[];
+  return {
+    data: rows.map(saleWithMetaFromNested),
+    total: Number(payload.total ?? 0),
+    page: Number(payload.page ?? page),
+    pageSize: Number(payload.page_size ?? pageSize),
+  };
+}
+
+async function resolveSaleSearchOrFilter(
+  orgId: string,
+  search: string
+): Promise<string | null> {
+  const supabase = createClient();
+  const term = search.trim();
+  if (!term) return null;
+
+  const pattern = `%${escapeIlikePattern(term)}%`;
+  const [contactsRes, productsRes] = await Promise.all([
+    supabase
+      .from("contacts")
+      .select("id")
+      .eq("organization_id", orgId)
+      .is("deleted_at", null)
+      .ilike("name", pattern)
+      .limit(100),
+    supabase
+      .from("products")
+      .select("id")
+      .eq("organization_id", orgId)
+      .is("deleted_at", null)
+      .or(
+        [
+          ilikeOrPart("name", pattern),
+          ilikeOrPart("sku", pattern),
+          ilikeOrPart("barcode", pattern),
+        ].join(",")
+      )
+      .limit(100),
+  ]);
+  if (contactsRes.error) throw contactsRes.error;
+  if (productsRes.error) throw productsRes.error;
+
+  const contactIds = (contactsRes.data ?? []).map((r) => String(r.id));
+  const productIds = (productsRes.data ?? []).map((r) => String(r.id));
+
+  let saleIds: string[] = [];
+  if (productIds.length > 0) {
+    const { data: itemRows, error: itemsError } = await supabase
+      .from("sale_items")
+      .select("sale_id")
+      .in("product_id", productIds)
+      .is("deleted_at", null)
+      .limit(500);
+    if (itemsError) throw itemsError;
+    saleIds = Array.from(new Set((itemRows ?? []).map((r) => String(r.sale_id))));
+  }
+
+  const parts = [
+    ilikeOrPart("notes", pattern),
+    inOrPart("customer_id", contactIds),
+    inOrPart("id", saleIds),
+  ].filter((p): p is string => !!p);
+
+  const asNumber = Number(term);
+  if (Number.isFinite(asNumber) && /^\d+(\.\d+)?$/.test(term)) {
+    parts.push(`total.eq.${asNumber}`);
+  }
+
+  return parts.join(",");
+}
+
+async function listSalesPaginatedViaQuery(
   orgId: string,
   page: number,
   pageSize: number,
@@ -164,28 +285,37 @@ export async function listSalesPaginated(
     q = q.eq("customer_id", filters.customerId);
   }
 
+  const search = filters?.search?.trim();
+  if (search) {
+    const orFilter = await resolveSaleSearchOrFilter(orgId, search);
+    if (orFilter) q = q.or(orFilter);
+  }
+
   const { data, error, count } = await q
     .order("date", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
   if (error) throw error;
 
-  let rows = (data ?? []) as unknown as SaleRowWithItems[];
-  if (filters?.search?.trim()) {
-    const term = filters.search.trim().toLowerCase();
-    rows = rows.filter(
-      (s) =>
-        s.notes?.toLowerCase().includes(term) ||
-        String(s.total).includes(term)
-    );
-  }
-
   return {
-    data: rows.map(saleWithMetaFromNested),
+    data: ((data ?? []) as unknown as SaleRowWithItems[]).map(saleWithMetaFromNested),
     total: count ?? 0,
     page,
     pageSize,
   };
+}
+
+export async function listSalesPaginated(
+  orgId: string,
+  page: number,
+  pageSize: number,
+  filters?: SalesListFilters
+): Promise<PaginatedResult<SaleWithMeta>> {
+  if (filters?.search?.trim()) {
+    const viaRpc = await listSalesPaginatedViaRpc(orgId, page, pageSize, filters);
+    if (viaRpc) return viaRpc;
+  }
+  return listSalesPaginatedViaQuery(orgId, page, pageSize, filters);
 }
 
 export async function getCustomerBalances(orgId: string): Promise<CustomerBalance[]> {
