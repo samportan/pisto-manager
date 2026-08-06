@@ -3,7 +3,9 @@
 import * as React from "react";
 import { ChevronDown, Search } from "lucide-react";
 
+import { MobilePickerSheet } from "@/components/business/mobile-picker-sheet";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useT } from "@/hooks/useTranslations";
 import type { Product } from "@/lib/db/products";
 import { filterProductsForPicker } from "@/lib/product-search";
@@ -27,6 +29,7 @@ export function ProductPicker({
   disabled,
 }: ProductPickerProps) {
   const { t } = useT();
+  const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [panelStyle, setPanelStyle] = React.useState<React.CSSProperties>({});
@@ -61,7 +64,7 @@ export function ProductPicker({
   }
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || isMobile) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
 
@@ -100,14 +103,18 @@ export function ProductPicker({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [open]);
-
-  React.useEffect(() => {
-    if (open) searchRef.current?.focus();
-  }, [open]);
+  }, [open, isMobile]);
 
   React.useEffect(() => {
     if (!open) return;
+    const frame = window.requestAnimationFrame(() => {
+      searchRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, isMobile]);
+
+  React.useEffect(() => {
+    if (!open || isMobile) return;
 
     function onPointerDown(e: PointerEvent) {
       if (!containerRef.current?.contains(e.target as Node)) closePanel();
@@ -122,7 +129,7 @@ export function ProductPicker({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, closePanel]);
+  }, [open, isMobile, closePanel]);
 
   const triggerLabel = selected
     ? showStock
@@ -134,6 +141,71 @@ export function ProductPicker({
     if (p.barcode) return p.barcode;
     if (p.sku) return p.sku;
     return null;
+  }
+
+  function renderSearchField() {
+    return (
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <Input
+          ref={searchRef}
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={t("business.searchProducts")}
+          className={cn("h-9 pl-9", isMobile && "h-11 text-base")}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+    );
+  }
+
+  function renderOptionsList(scrollable: boolean) {
+    return (
+      <ul role="listbox" className={cn("p-1", scrollable && "max-h-60 overflow-y-auto")}>
+        {filteredProducts.length === 0 ? (
+          <li className="px-3 py-4 text-center text-sm text-muted-foreground">
+            {t("business.noProductsMatch")}
+          </li>
+        ) : (
+          filteredProducts.map((p) => {
+            const code = secondaryLabel(p);
+            return (
+              <li key={p.id} role="option" aria-selected={p.id === value}>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
+                    p.id === value && "bg-muted"
+                  )}
+                  onClick={() => selectProduct(p.id)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{p.name}</span>
+                    {code ? (
+                      <span className="block truncate text-xs text-muted-foreground tabular-nums">
+                        {code}
+                      </span>
+                    ) : null}
+                  </span>
+                  {showStock ? (
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                      {t("business.stockLabel", { count: String(p.stock) })}
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })
+        )}
+      </ul>
+    );
   }
 
   return (
@@ -158,63 +230,23 @@ export function ProductPicker({
         />
       </button>
 
-      {open ? (
-        <div
-          style={panelStyle}
-          className="rounded-lg border border-border bg-card shadow-lg"
-        >
-          <div className="relative border-b border-border p-2">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              ref={searchRef}
-              type="search"
-              placeholder={t("business.searchProducts")}
-              className="h-9 pl-9"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <ul role="listbox" className="max-h-60 overflow-y-auto p-1">
-            {filteredProducts.length === 0 ? (
-              <li className="px-3 py-4 text-center text-sm text-muted-foreground">
-                {t("business.noProductsMatch")}
-              </li>
-            ) : (
-              filteredProducts.map((p) => {
-                const code = secondaryLabel(p);
-                return (
-                  <li key={p.id} role="option" aria-selected={p.id === value}>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
-                        p.id === value && "bg-muted"
-                      )}
-                      onClick={() => selectProduct(p.id)}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate font-medium">{p.name}</span>
-                        {code ? (
-                          <span className="block truncate text-xs text-muted-foreground tabular-nums">
-                            {code}
-                          </span>
-                        ) : null}
-                      </span>
-                      {showStock ? (
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {t("business.stockLabel", { count: String(p.stock) })}
-                        </span>
-                      ) : null}
-                    </button>
-                  </li>
-                );
-              })
-            )}
-          </ul>
+      {open && !isMobile ? (
+        <div style={panelStyle} className="rounded-lg border border-border bg-card shadow-lg">
+          <div className="border-b border-border p-2">{renderSearchField()}</div>
+          {renderOptionsList(true)}
         </div>
+      ) : null}
+
+      {open && isMobile ? (
+        <MobilePickerSheet
+          open
+          onClose={closePanel}
+          title={t("business.searchProducts").replace(/[.…]+$/, "")}
+          closeLabel={t("common.close")}
+          search={renderSearchField()}
+        >
+          {renderOptionsList(false)}
+        </MobilePickerSheet>
       ) : null}
     </div>
   );
