@@ -3,7 +3,9 @@
 import * as React from "react";
 import { ChevronDown, Search } from "lucide-react";
 
+import { MobilePickerSheet } from "@/components/business/mobile-picker-sheet";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useT } from "@/hooks/useTranslations";
 import type { Contact } from "@/lib/db/contacts";
 import { filterContactsByName } from "@/lib/contact-search";
@@ -35,6 +37,7 @@ export function ContactPicker({
   id,
 }: ContactPickerProps) {
   const { t } = useT();
+  const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [panelStyle, setPanelStyle] = React.useState<React.CSSProperties>({});
@@ -69,7 +72,7 @@ export function ContactPicker({
   }
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || isMobile) return;
     const trigger = triggerRef.current;
     if (!trigger) return;
 
@@ -108,14 +111,18 @@ export function ContactPicker({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [open]);
-
-  React.useEffect(() => {
-    if (open) searchRef.current?.focus();
-  }, [open]);
+  }, [open, isMobile]);
 
   React.useEffect(() => {
     if (!open) return;
+    const frame = window.requestAnimationFrame(() => {
+      searchRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, isMobile]);
+
+  React.useEffect(() => {
+    if (!open || isMobile) return;
 
     function onPointerDown(e: PointerEvent) {
       if (!containerRef.current?.contains(e.target as Node)) closePanel();
@@ -130,7 +137,7 @@ export function ContactPicker({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, closePanel]);
+  }, [open, isMobile, closePanel]);
 
   const resolvedEmptyLabel = emptyLabel ?? t("business.noSupplier");
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("business.searchContacts");
@@ -140,6 +147,70 @@ export function ContactPicker({
 
   const showEmptyOption =
     allowEmpty && (!query.trim() || resolvedEmptyLabel.toLowerCase().includes(query.trim().toLowerCase()));
+
+  function renderSearchField() {
+    return (
+      <div className="relative">
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden
+        />
+        <Input
+          ref={searchRef}
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={resolvedSearchPlaceholder}
+          className={cn("h-9 pl-9", isMobile && "h-11 text-base")}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+    );
+  }
+
+  function renderOptionsList(scrollable: boolean) {
+    return (
+      <ul role="listbox" className={cn("p-1", scrollable && "max-h-60 overflow-y-auto")}>
+        {showEmptyOption ? (
+          <li role="option" aria-selected={!value}>
+            <button
+              type="button"
+              className={cn(
+                "flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
+                !value && "bg-muted"
+              )}
+              onClick={() => selectContact("")}
+            >
+              <span className="truncate text-muted-foreground">{resolvedEmptyLabel}</span>
+            </button>
+          </li>
+        ) : null}
+        {filteredContacts.length === 0 && !showEmptyOption ? (
+          <li className="px-3 py-4 text-center text-sm text-muted-foreground">
+            {resolvedNoMatchLabel}
+          </li>
+        ) : (
+          filteredContacts.map((c) => (
+            <li key={c.id} role="option" aria-selected={c.id === value}>
+              <button
+                type="button"
+                className={cn(
+                  "flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
+                  c.id === value && "bg-muted"
+                )}
+                onClick={() => selectContact(c.id)}
+              >
+                <span className="truncate font-medium">{c.name}</span>
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
+    );
+  }
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -164,59 +235,23 @@ export function ContactPicker({
         />
       </button>
 
-      {open ? (
+      {open && !isMobile ? (
         <div style={panelStyle} className="rounded-lg border border-border bg-card shadow-lg">
-          <div className="relative border-b border-border p-2">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              ref={searchRef}
-              type="search"
-              placeholder={resolvedSearchPlaceholder}
-              className="h-9 pl-9"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          <ul role="listbox" className="max-h-60 overflow-y-auto p-1">
-            {showEmptyOption ? (
-              <li role="option" aria-selected={!value}>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
-                    !value && "bg-muted"
-                  )}
-                  onClick={() => selectContact("")}
-                >
-                  <span className="truncate text-muted-foreground">{resolvedEmptyLabel}</span>
-                </button>
-              </li>
-            ) : null}
-            {filteredContacts.length === 0 && !showEmptyOption ? (
-              <li className="px-3 py-4 text-center text-sm text-muted-foreground">
-                {resolvedNoMatchLabel}
-              </li>
-            ) : (
-              filteredContacts.map((c) => (
-                <li key={c.id} role="option" aria-selected={c.id === value}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted md:min-h-9",
-                      c.id === value && "bg-muted"
-                    )}
-                    onClick={() => selectContact(c.id)}
-                  >
-                    <span className="truncate font-medium">{c.name}</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
+          <div className="border-b border-border p-2">{renderSearchField()}</div>
+          {renderOptionsList(true)}
         </div>
+      ) : null}
+
+      {open && isMobile ? (
+        <MobilePickerSheet
+          open
+          onClose={closePanel}
+          title={resolvedSearchPlaceholder.replace(/[.…]+$/, "")}
+          closeLabel={t("common.close")}
+          search={renderSearchField()}
+        >
+          {renderOptionsList(false)}
+        </MobilePickerSheet>
       ) : null}
     </div>
   );
