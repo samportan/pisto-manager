@@ -113,11 +113,19 @@ export function ProductInsightsView() {
         ranking,
         labels: {
           products: t("business.sheetProducts"),
+          adjustments: t("business.sheetAdjustments"),
           sales: t("business.sheetSales"),
           saleLines: t("business.sheetSaleLines"),
           purchases: t("business.sheetPurchases"),
           purchaseLines: t("business.sheetPurchaseLines"),
           performance: t("business.sheetPerformance"),
+        },
+        reasonLabels: {
+          count_correction: t("business.reasonCountCorrection"),
+          personal_use: t("business.reasonPersonalUse"),
+          waste: t("business.reasonWaste"),
+          gift: t("business.reasonGift"),
+          other: t("business.reasonOther"),
         },
       });
       downloadWorkbook(sheets, todayFilename("negocio-completo"));

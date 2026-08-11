@@ -1,15 +1,23 @@
 import type { Contact } from "@/lib/db/contacts";
 import { getContactsByOrgId } from "@/lib/db/contacts";
-import { getPurchaseItemsByOrgId, getSaleItemsByOrgId } from "@/lib/db/export-data";
+import {
+  getPurchaseItemsByOrgId,
+  getSaleItemsByOrgId,
+  getStockMovementsByOrgId,
+  type ExportStockMovement,
+} from "@/lib/db/export-data";
 import { getProductsByOrgId, type Product } from "@/lib/db/products";
 import {
   getPurchasesHeadersByOrgId,
   type PurchaseWithMeta,
 } from "@/lib/db/purchases";
 import { getSalesHeadersByOrgId, type SaleWithMeta } from "@/lib/db/sales";
+import type { StockAdjustmentReason } from "@/lib/db/stock-movements";
 import type { ProductSalesRank } from "@/lib/analytics/business-products";
 import { downloadWorkbook, todayFilename, type SheetRow } from "@/lib/export/excel";
 import { formatDateForExport } from "@/lib/timezone";
+
+export type StockAdjustmentReasonLabels = Record<StockAdjustmentReason, string>;
 
 type ContactMap = Map<string, string>;
 
@@ -136,8 +144,41 @@ export function performanceToRows(ranking: ProductSalesRank[]): SheetRow[] {
   }));
 }
 
-export async function buildProductsWorkbook(products: Product[], sheetName: string) {
-  return [{ name: sheetName, rows: productsToRows(products) }];
+export function stockMovementsToRows(
+  movements: ExportStockMovement[],
+  reasonLabels: StockAdjustmentReasonLabels
+): SheetRow[] {
+  return movements.map((m) => {
+    const cost = Number(m.cost_price);
+    const qty = Number(m.quantity_delta);
+    return {
+      fecha: dateOnly(m.created_at),
+      producto: m.product_name ?? m.product_id,
+      sku: m.product_sku ?? "",
+      codigo_barras: m.product_barcode ?? "",
+      motivo: reasonLabels[m.reason] ?? m.reason,
+      cantidad: qty,
+      stock_antes: Number(m.stock_before),
+      stock_despues: Number(m.stock_after),
+      precio_costo: cost,
+      valor_costo: qty * cost,
+      unidad: m.unit_of_measure,
+      notas: m.notes ?? "",
+    };
+  });
+}
+
+export async function buildProductsWorkbook(
+  products: Product[],
+  orgId: string,
+  labels: { products: string; adjustments: string },
+  reasonLabels: StockAdjustmentReasonLabels
+) {
+  const movements = await getStockMovementsByOrgId(orgId);
+  return [
+    { name: labels.products, rows: productsToRows(products) },
+    { name: labels.adjustments, rows: stockMovementsToRows(movements, reasonLabels) },
+  ];
 }
 
 export async function buildSalesWorkbookOnDemand(
@@ -233,22 +274,32 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
   ranking: ProductSalesRank[];
   labels: {
     products: string;
+    adjustments: string;
     sales: string;
     saleLines: string;
     purchases: string;
     purchaseLines: string;
     performance: string;
   };
+  reasonLabels: StockAdjustmentReasonLabels;
 }) {
-  const [products, contacts, saleHeaders, purchaseHeaders, saleLines, purchaseLines] =
-    await Promise.all([
-      getProductsByOrgId(args.orgId),
-      getContactsByOrgId(args.orgId),
-      getSalesHeadersByOrgId(args.orgId),
-      getPurchasesHeadersByOrgId(args.orgId),
-      getSaleItemsByOrgId(args.orgId),
-      getPurchaseItemsByOrgId(args.orgId),
-    ]);
+  const [
+    products,
+    contacts,
+    saleHeaders,
+    purchaseHeaders,
+    saleLines,
+    purchaseLines,
+    movements,
+  ] = await Promise.all([
+    getProductsByOrgId(args.orgId),
+    getContactsByOrgId(args.orgId),
+    getSalesHeadersByOrgId(args.orgId),
+    getPurchasesHeadersByOrgId(args.orgId),
+    getSaleItemsByOrgId(args.orgId),
+    getPurchaseItemsByOrgId(args.orgId),
+    getStockMovementsByOrgId(args.orgId),
+  ]);
 
   const saleLineCounts = countById(saleLines.map((l) => l.sale_id));
   const purchaseLineCounts = countById(purchaseLines.map((l) => l.purchase_id));
@@ -268,6 +319,10 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
 
   return [
     { name: args.labels.products, rows: productsToRows(products) },
+    {
+      name: args.labels.adjustments,
+      rows: stockMovementsToRows(movements, args.reasonLabels),
+    },
     { name: args.labels.sales, rows: salesToRows(sales, contacts) },
     { name: args.labels.saleLines, rows: saleLinesToRows(saleLines, contacts) },
     { name: args.labels.purchases, rows: purchasesToRows(purchases, contacts) },

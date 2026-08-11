@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useProducts } from "@/hooks/useProducts";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
@@ -33,6 +34,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { t, intlLocale, currency } = useT();
   const toast = useAppToast();
   const searchParams = useSearchParams();
+  const { activeOrgId } = useActiveOrganization();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
     useProducts();
@@ -188,11 +190,23 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
                 label={t("business.downloadExcel")}
                 isExporting={exporting}
                 onExport={async () => {
+                  if (!activeOrgId) return;
                   setExporting(true);
                   try {
                     const sheets = await buildProductsWorkbook(
                       products,
-                      t("business.sheetProducts")
+                      activeOrgId,
+                      {
+                        products: t("business.sheetProducts"),
+                        adjustments: t("business.sheetAdjustments"),
+                      },
+                      {
+                        count_correction: t("business.reasonCountCorrection"),
+                        personal_use: t("business.reasonPersonalUse"),
+                        waste: t("business.reasonWaste"),
+                        gift: t("business.reasonGift"),
+                        other: t("business.reasonOther"),
+                      }
                     );
                     downloadWorkbook(sheets, todayFilename("productos"));
                   } finally {

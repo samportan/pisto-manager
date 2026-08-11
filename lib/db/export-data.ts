@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import type { StockAdjustmentReason } from "./stock-movements";
 import { fetchAllPages } from "./query-chunks";
 
 export type ExportSaleLine = {
@@ -27,6 +28,22 @@ export type ExportPurchaseLine = {
   quantity_received: number | null;
   unit_cost: number;
   line_total: number;
+};
+
+export type ExportStockMovement = {
+  id: string;
+  product_id: string;
+  product_name: string | null;
+  product_sku: string | null;
+  product_barcode: string | null;
+  cost_price: number;
+  unit_of_measure: string;
+  quantity_delta: number;
+  reason: StockAdjustmentReason;
+  notes: string | null;
+  stock_before: number;
+  stock_after: number;
+  created_at: string;
 };
 
 type SaleItemExportRow = {
@@ -61,6 +78,24 @@ type PurchaseItemExportRow = {
     deleted_at: string | null;
   };
   products: { name: string; sku: string | null } | null;
+};
+
+type StockMovementExportRow = {
+  id: string;
+  product_id: string;
+  quantity_delta: number;
+  reason: StockAdjustmentReason;
+  notes: string | null;
+  stock_before: number;
+  stock_after: number;
+  created_at: string;
+  products: {
+    name: string;
+    sku: string | null;
+    barcode: string | null;
+    cost_price: number;
+    unit_of_measure: string | null;
+  } | null;
 };
 
 export async function getSaleItemsByOrgId(orgId: string): Promise<ExportSaleLine[]> {
@@ -126,5 +161,39 @@ export async function getPurchaseItemsByOrgId(
     quantity_received: row.quantity_received != null ? Number(row.quantity_received) : null,
     unit_cost: Number(row.unit_cost),
     line_total: Number(row.line_total),
+  }));
+}
+
+export async function getStockMovementsByOrgId(
+  orgId: string
+): Promise<ExportStockMovement[]> {
+  const supabase = createClient();
+  const data = await fetchAllPages(async (from, to) => {
+    const { data: page, error } = await supabase
+      .from("stock_movements")
+      .select(
+        "id, product_id, quantity_delta, reason, notes, stock_before, stock_after, created_at, products(name, sku, barcode, cost_price, unit_of_measure)"
+      )
+      .eq("organization_id", orgId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return (page ?? []) as unknown as StockMovementExportRow[];
+  });
+
+  return data.map((row) => ({
+    id: row.id,
+    product_id: row.product_id,
+    product_name: row.products?.name ?? null,
+    product_sku: row.products?.sku ?? null,
+    product_barcode: row.products?.barcode ?? null,
+    cost_price: Number(row.products?.cost_price ?? 0),
+    unit_of_measure: row.products?.unit_of_measure ?? "unit",
+    quantity_delta: Number(row.quantity_delta),
+    reason: row.reason,
+    notes: row.notes,
+    stock_before: Number(row.stock_before),
+    stock_after: Number(row.stock_after),
+    created_at: row.created_at,
   }));
 }
