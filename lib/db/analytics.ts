@@ -27,8 +27,30 @@ function asRecord(v: unknown): Record<string, unknown> {
     : {};
 }
 
+export type BusinessPnl = {
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  operatingExpenses: number;
+  operatingProfit: number;
+  financialExpenses: number;
+  personalExpenses: number;
+  netProfit: number;
+};
+
+export type BusinessCashPosition = {
+  cashIncome: number;
+  bankIncome: number;
+  inventoryPurchases: number;
+  totalExpenses: number;
+  availableBalance: number;
+  recurringExpenseCount: number;
+};
+
 export type BusinessOverviewData = {
   monthTotals: { revenue: number; purchases: number; margin: number };
+  pnl: BusinessPnl;
+  cashPosition: BusinessCashPosition;
   series: { key: string; revenue: number; purchases: number; margin: number }[];
   topProducts: { productId: string; productName: string; revenue: number; unitsSold: number }[];
   lowStockCount: number;
@@ -117,11 +139,39 @@ export async function fetchBusinessOverview(
   if (error) throw error;
   const root = asRecord(data);
   const month = asRecord(root.month_totals);
+  const pnl = asRecord(root.pnl);
+  const cash = asRecord(root.cash_position);
+  const revenue = asNumber(month.revenue);
+  const purchases = asNumber(month.purchases);
+  const margin = asNumber(month.margin);
   return {
     monthTotals: {
-      revenue: asNumber(month.revenue),
-      purchases: asNumber(month.purchases),
-      margin: asNumber(month.margin),
+      revenue,
+      purchases,
+      margin,
+    },
+    pnl: {
+      revenue: asNumber(pnl.revenue) || revenue,
+      cogs: asNumber(pnl.cogs) || purchases,
+      grossProfit: asNumber(pnl.gross_profit) || margin,
+      operatingExpenses: asNumber(pnl.operating_expenses),
+      operatingProfit: asNumber(pnl.operating_profit) || margin - asNumber(pnl.operating_expenses),
+      financialExpenses: asNumber(pnl.financial_expenses),
+      personalExpenses: asNumber(pnl.personal_expenses),
+      netProfit:
+        asNumber(pnl.net_profit) ||
+        margin -
+          asNumber(pnl.operating_expenses) -
+          asNumber(pnl.financial_expenses) -
+          asNumber(pnl.personal_expenses),
+    },
+    cashPosition: {
+      cashIncome: asNumber(cash.cash_income),
+      bankIncome: asNumber(cash.bank_income),
+      inventoryPurchases: asNumber(cash.inventory_purchases),
+      totalExpenses: asNumber(cash.total_expenses),
+      availableBalance: asNumber(cash.available_balance),
+      recurringExpenseCount: asNumber(cash.recurring_expense_count),
     },
     series: asArray(root.series).map((row) => {
       const r = asRecord(row);

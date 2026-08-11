@@ -4,12 +4,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import { contactKeys } from "@/hooks/useContacts";
+import { expenseKeys } from "@/hooks/useExpenses";
 import { productKeys } from "@/hooks/useProducts";
 import { purchasesKeys } from "@/hooks/usePurchases";
 import { salesKeys } from "@/hooks/useSales";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
 import { getContactsByOrgId } from "@/lib/db/contacts";
+import { getExpensesByOrgId } from "@/lib/db/expenses";
 import { listPurchasesPaginated } from "@/lib/db/purchases";
 import { getProductsByOrgId } from "@/lib/db/products";
 import { listSalesPaginated } from "@/lib/db/sales";
@@ -60,6 +62,14 @@ export function usePrefetchBusinessRoute() {
         void queryClient.prefetchQuery({
           queryKey: contactKeys.all(orgId),
           queryFn: () => getContactsByOrgId(orgId),
+        });
+        return;
+      }
+
+      if (href === "/dashboard/business/expenses") {
+        void queryClient.prefetchQuery({
+          queryKey: expenseKeys.all(orgId),
+          queryFn: () => getExpensesByOrgId(orgId),
         });
       }
     },
