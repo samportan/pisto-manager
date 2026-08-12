@@ -5,6 +5,7 @@ import {
   Landmark,
   LayoutDashboard,
   Package,
+  Receipt,
   ShoppingCart,
   Target,
   Users,
@@ -33,6 +34,7 @@ export const businessNavItems: NavItem[] = [
   { titleKey: "nav.contacts", href: "/dashboard/business/contacts", icon: Users },
   { titleKey: "nav.sales", href: "/dashboard/business/sales", icon: ShoppingCart },
   { titleKey: "nav.purchases", href: "/dashboard/business/purchases", icon: Boxes },
+  { titleKey: "nav.expenses", href: "/dashboard/business/expenses", icon: Receipt },
 ];
 
 export function isNavActive(pathname: string, href: string) {

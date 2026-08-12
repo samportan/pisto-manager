@@ -16,6 +16,53 @@ import { isOutOfStock } from "@/lib/stock";
 import { BUSINESS_TIMEZONE } from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 
+function PnlRow({
+  label,
+  value,
+  fmt,
+  tone = "default",
+  hint,
+  emphasis = false,
+}: {
+  label: string;
+  value: number;
+  fmt: (v: number) => string;
+  tone?: "default" | "minus" | "result";
+  hint?: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-start justify-between gap-3 py-2.5",
+        emphasis && "border-t border-border pt-3"
+      )}
+    >
+      <div className="min-w-0">
+        <p
+          className={cn(
+            "text-sm",
+            emphasis ? "font-semibold" : "text-muted-foreground",
+            tone === "minus" && !emphasis && "text-muted-foreground"
+          )}
+        >
+          {tone === "minus" ? `− ${label}` : tone === "result" ? `= ${label}` : `+ ${label}`}
+        </p>
+        {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+      </div>
+      <p
+        className={cn(
+          "shrink-0 tabular-nums text-sm",
+          emphasis ? "text-base font-bold" : "font-medium",
+          value < 0 && "text-destructive"
+        )}
+      >
+        {fmt(value)}
+      </p>
+    </div>
+  );
+}
+
 export function BusinessOverview() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
@@ -51,13 +98,15 @@ export function BusinessOverview() {
   const lowStockPreview = data?.lowStockPreview ?? [];
   const lowStockHref = "/dashboard/business/products?stock=low";
   const month = data?.monthTotals;
+  const pnl = data?.pnl;
+  const cash = data?.cashPosition;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
       <h1 className="text-3xl font-bold tracking-tight">{t("business.overviewTitle")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">{t("business.overviewSubtitle")}</p>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {isLoading || !month ? (
+        {isLoading || !month || !pnl || !cash ? (
           <>
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -67,8 +116,11 @@ export function BusinessOverview() {
         ) : (
           <>
             <StatCard title={t("business.revenue")} value={fmt(month.revenue)} />
-            <StatCard title={t("business.purchases")} value={fmt(month.purchases)} />
-            <StatCard title={t("business.grossMargin")} value={fmt(month.margin)} />
+            <StatCard
+              title={t("business.pnlOperatingProfit")}
+              value={fmt(pnl.operatingProfit)}
+            />
+            <StatCard title={t("business.pnlNetProfit")} value={fmt(pnl.netProfit)} />
             <Link
               href={lowStockHref}
               className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -99,6 +151,126 @@ export function BusinessOverview() {
             </Link>
           </>
         )}
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">{t("business.pnlTitle")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("business.pnlSubtitle")}</p>
+          {isLoading || !pnl ? (
+            <div className="mt-4 h-56 animate-pulse rounded-lg bg-muted/50" />
+          ) : (
+            <div className="mt-2 divide-y divide-border/70">
+              <PnlRow label={t("business.pnlRevenue")} value={pnl.revenue} fmt={fmt} />
+              <PnlRow
+                label={t("business.pnlCogs")}
+                value={pnl.cogs}
+                fmt={fmt}
+                tone="minus"
+              />
+              <PnlRow
+                label={t("business.pnlGrossProfit")}
+                value={pnl.grossProfit}
+                fmt={fmt}
+                tone="result"
+                emphasis
+              />
+              <PnlRow
+                label={t("business.pnlOperatingExpenses")}
+                value={pnl.operatingExpenses}
+                fmt={fmt}
+                tone="minus"
+              />
+              <PnlRow
+                label={t("business.pnlOperatingProfit")}
+                value={pnl.operatingProfit}
+                fmt={fmt}
+                tone="result"
+                hint={t("business.pnlOperatingProfitHint")}
+                emphasis
+              />
+              <PnlRow
+                label={t("business.pnlFinancialExpenses")}
+                value={pnl.financialExpenses}
+                fmt={fmt}
+                tone="minus"
+              />
+              <PnlRow
+                label={t("business.pnlPersonalExpenses")}
+                value={pnl.personalExpenses}
+                fmt={fmt}
+                tone="minus"
+              />
+              <PnlRow
+                label={t("business.pnlNetProfit")}
+                value={pnl.netProfit}
+                fmt={fmt}
+                tone="result"
+                hint={t("business.pnlNetProfitHint")}
+                emphasis
+              />
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold">{t("business.cashPositionTitle")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t("business.cashPositionSubtitle")}
+          </p>
+          {isLoading || !cash ? (
+            <div className="mt-4 h-56 animate-pulse rounded-lg bg-muted/50" />
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-lg bg-muted/40 px-3 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("business.cashAvailableBalance")}
+                </p>
+                <p
+                  className={cn(
+                    "mt-1 text-3xl font-bold tabular-nums",
+                    cash.availableBalance < 0 && "text-destructive"
+                  )}
+                >
+                  {fmt(cash.availableBalance)}
+                </p>
+              </div>
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{t("business.cashIncome")}</dt>
+                  <dd className="tabular-nums font-medium">{fmt(cash.cashIncome)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{t("business.bankIncome")}</dt>
+                  <dd className="tabular-nums font-medium">{fmt(cash.bankIncome)}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{t("business.cashInventoryOut")}</dt>
+                  <dd className="tabular-nums font-medium">
+                    {fmt(cash.inventoryPurchases)}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{t("business.cashExpensesOut")}</dt>
+                  <dd className="tabular-nums font-medium">{fmt(cash.totalExpenses)}</dd>
+                </div>
+              </dl>
+              {cash.recurringExpenseCount > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("business.recurringExpensesAlert", {
+                    count: cash.recurringExpenseCount,
+                  })}
+                </p>
+              ) : null}
+              <Link
+                href="/dashboard/business/expenses"
+                className="inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t("business.newExpense")}
+              </Link>
+            </div>
+          )}
+        </section>
       </div>
 
       {!isLoading && lowStockCount > 0 ? (
@@ -176,9 +348,10 @@ export function BusinessOverview() {
         </section>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Quick href="/dashboard/business/products" label={t("business.manageProducts")} />
         <Quick href="/dashboard/business/sales" label={t("business.newSale")} />
+        <Quick href="/dashboard/business/expenses" label={t("business.newExpense")} />
       </div>
     </div>
   );
