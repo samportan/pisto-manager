@@ -3,12 +3,12 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { PeriodFilter } from "@/components/analytics/period-filter";
 import { DataTable } from "@/components/business/data-table";
 import { ProductInsightsBarChart } from "@/components/business/product-insights-charts";
 import { PageHeader } from "@/components/business/page-header";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useSaleInsights } from "@/hooks/useBusinessAnalytics";
 import { useT } from "@/hooks/useTranslations";
 import type { InsightsPeriod } from "@/lib/analytics/shared";
@@ -40,13 +40,6 @@ export function SaleInsightsView() {
     name: d.date,
     total: d.revenue,
   }));
-
-  const periodOptions: { value: InsightsPeriod; label: string }[] = [
-    { value: "today", label: t("business.periodToday") },
-    { value: "this_month", label: t("business.periodThisMonth") },
-    { value: "last_30_days", label: t("business.period30Days") },
-    { value: "all_time", label: t("business.periodAllTime") },
-  ];
 
   function paymentLabel(method: PaymentMethod) {
     if (method === "cash") return t("business.paymentCash");
@@ -85,19 +78,7 @@ export function SaleInsightsView() {
           description={t("business.saleInsightsSubtitle")}
         />
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {periodOptions.map((opt) => (
-            <Button
-              key={opt.value}
-              type="button"
-              size="sm"
-              variant={period === opt.value ? "secondary" : "outline"}
-              onClick={() => setPeriod(opt.value)}
-            >
-              {opt.label}
-            </Button>
-          ))}
-        </div>
+        <PeriodFilter value={period} onChange={setPeriod} className="mb-6" />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {isLoading || !periodKpis ? (

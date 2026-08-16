@@ -11,7 +11,6 @@ import {
 } from "@/lib/db/expenses";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
-import { businessAnalyticsKeys } from "@/hooks/useBusinessAnalytics";
 
 export const expenseKeys = {
   all: (orgId: string, opts?: ListExpensesOptions) =>
@@ -40,7 +39,7 @@ export function useExpenses(opts?: ListExpensesOptions) {
   const invalidate = () => {
     if (!orgId) return;
     void queryClient.invalidateQueries({ queryKey: ["expenses", orgId] });
-    void queryClient.invalidateQueries({ queryKey: businessAnalyticsKeys.overview(orgId) });
+    void queryClient.invalidateQueries({ queryKey: ["business-overview", orgId] });
   };
 
   const createMutation = useMutation({

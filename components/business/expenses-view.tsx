@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Pencil, Search, Trash2 } from "lucide-react";
 
 import { AddExpenseSheet } from "@/components/business/add-expense-sheet";
 import { DataTable } from "@/components/business/data-table";
+import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { PageHeader } from "@/components/business/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,11 @@ import { useExpenses } from "@/hooks/useExpenses";
 import { useT } from "@/hooks/useTranslations";
 import type { Expense, ExpenseCategory } from "@/lib/db/expenses";
 import { formatMoneyDisplay } from "@/lib/format-money";
+import {
+  buildExpensesWorkbook,
+  downloadWorkbook,
+  todayFilename,
+} from "@/lib/export/business-exports";
 import { toZonedDateString } from "@/lib/timezone";
 
 function categoryVariant(
@@ -34,12 +40,16 @@ export function ExpensesView() {
   const {
     expenses,
     createExpense,
+    updateExpense,
     deleteExpense,
     isCreating,
+    isUpdating,
     isDeleting,
     isLoading,
   } = useExpenses();
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [editExpense, setEditExpense] = React.useState<Expense | null>(null);
+  const [exporting, setExporting] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [categoryFilter, setCategoryFilter] = React.useState<ExpenseCategory | "all">(
     "all"
@@ -120,12 +130,25 @@ export function ExpensesView() {
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t("common.edit")}
+              onClick={() => {
+                setEditExpense(row.original);
+                setSheetOpen(true);
+              }}
+            >
+              <Pencil className="size-4" />
+            </Button>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="text-destructive hover:text-destructive"
+              aria-label={t("common.delete")}
               onClick={() => setDeleteId(row.original.id)}
             >
               <Trash2 className="size-4" />
@@ -144,15 +167,44 @@ export function ExpensesView() {
           title={t("business.expensesTitle")}
           description={t("business.expensesSubtitle")}
           actions={
-            <Button
-              type="button"
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setSheetOpen(true)}
-            >
-              <Plus className="size-4" aria-hidden />
-              {t("business.newExpense")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <ExportExcelButton
+                label={t("business.downloadExcel")}
+                isExporting={exporting}
+                onExport={async () => {
+                  setExporting(true);
+                  try {
+                    const sheets = buildExpensesWorkbook(
+                      filtered,
+                      t("business.sheetExpenses"),
+                      {
+                        category: (key) => t(`business.expenseCategory.${key}`),
+                        subcategory: (key) => t(`business.expenseSubcategory.${key}`),
+                        paymentMethod: (key) =>
+                          t(`business.expensePaymentMethod.${key}`),
+                        yes: t("common.yes"),
+                        no: t("common.no"),
+                      }
+                    );
+                    downloadWorkbook(sheets, todayFilename("gastos"));
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => {
+                  setEditExpense(null);
+                  setSheetOpen(true);
+                }}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t("business.newExpense")}
+              </Button>
+            </div>
           }
         />
 
@@ -219,13 +271,22 @@ export function ExpensesView() {
 
       <AddExpenseSheet
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        isSubmitting={isCreating}
+        expense={editExpense}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setEditExpense(null);
+        }}
+        isSubmitting={isCreating || isUpdating}
         onSubmit={async (values) => {
           try {
-            await createExpense(values);
+            if (editExpense) {
+              await updateExpense({ id: editExpense.id, patch: values });
+            } else {
+              await createExpense(values);
+            }
             toast.success("toast.expenseSaved");
             setSheetOpen(false);
+            setEditExpense(null);
           } catch (e) {
             toast.errorFrom(e);
             throw e;

@@ -1,4 +1,5 @@
 import type { Transaction } from "@/lib/db/transactions";
+import { getZonedParts, shiftCalendarMonth } from "@/lib/timezone";
 
 export type MonthTotals = {
   income: number;
@@ -6,8 +7,8 @@ export type MonthTotals = {
   net: number;
 };
 
-export function monthKey(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+export function monthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 export function getMonthTotals(
@@ -18,8 +19,8 @@ export function getMonthTotals(
   let income = 0;
   let expense = 0;
   for (const tx of transactions) {
-    const d = new Date(tx.date);
-    if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month) continue;
+    const p = getZonedParts(tx.date);
+    if (p.year !== year || p.month !== month) continue;
     const amount = Number(tx.amount);
     if (tx.type === "income") income += amount;
     else if (tx.type === "expense") expense += amount;
@@ -31,7 +32,7 @@ export function getLastNMonthsTotals(
   transactions: Transaction[],
   n: number
 ): Array<{ key: string; label: string; income: number; expense: number; net: number }> {
-  const now = new Date();
+  const nowParts = getZonedParts(new Date());
   const result: Array<{
     key: string;
     label: string;
@@ -41,11 +42,12 @@ export function getLastNMonthsTotals(
   }> = [];
 
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    const totals = getMonthTotals(transactions, d.getUTCFullYear(), d.getUTCMonth());
+    const m = shiftCalendarMonth(nowParts.year, nowParts.month, -i);
+    const totals = getMonthTotals(transactions, m.year, m.month);
+    const labelDate = new Date(Date.UTC(m.year, m.month - 1, 15, 12, 0, 0));
     result.push({
-      key: monthKey(d),
-      label: d.toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+      key: monthKey(m.year, m.month),
+      label: labelDate.toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
       ...totals,
     });
   }
@@ -61,8 +63,8 @@ export function getExpensesByCategory(
   const byCat = new Map<string, number>();
   for (const tx of transactions) {
     if (tx.type !== "expense" || !tx.category_id) continue;
-    const d = new Date(tx.date);
-    if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month) continue;
+    const p = getZonedParts(tx.date);
+    if (p.year !== year || p.month !== month) continue;
     const id = tx.category_id;
     byCat.set(id, (byCat.get(id) ?? 0) + Number(tx.amount));
   }

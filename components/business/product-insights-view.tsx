@@ -4,13 +4,13 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Download } from "lucide-react";
 
+import { PeriodFilter } from "@/components/analytics/period-filter";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { PageHeader } from "@/components/business/page-header";
 import { ProductInsightsBarChart } from "@/components/business/product-insights-charts";
 import { DataTable } from "@/components/business/data-table";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useProductInsightsAgg } from "@/hooks/useBusinessAnalytics";
 import { useT } from "@/hooks/useTranslations";
@@ -46,13 +46,6 @@ export function ProductInsightsView() {
   const topRevenue = ranking.slice(0, 5);
   const topUnits = [...ranking].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
   const deadStockCount = data?.deadStockCount ?? 0;
-
-  const periodOptions: { value: InsightsPeriod; label: string }[] = [
-    { value: "today", label: t("business.periodToday") },
-    { value: "this_month", label: t("business.periodThisMonth") },
-    { value: "last_30_days", label: t("business.period30Days") },
-    { value: "all_time", label: t("business.periodAllTime") },
-  ];
 
   const columns = React.useMemo<ColumnDef<ProductSalesRank>[]>(
     () => [
@@ -118,6 +111,7 @@ export function ProductInsightsView() {
           saleLines: t("business.sheetSaleLines"),
           purchases: t("business.sheetPurchases"),
           purchaseLines: t("business.sheetPurchaseLines"),
+          expenses: t("business.sheetExpenses"),
           performance: t("business.sheetPerformance"),
         },
         reasonLabels: {
@@ -126,6 +120,13 @@ export function ProductInsightsView() {
           waste: t("business.reasonWaste"),
           gift: t("business.reasonGift"),
           other: t("business.reasonOther"),
+        },
+        expenseLabels: {
+          category: (key) => t(`business.expenseCategory.${key}`),
+          subcategory: (key) => t(`business.expenseSubcategory.${key}`),
+          paymentMethod: (key) => t(`business.expensePaymentMethod.${key}`),
+          yes: t("common.yes"),
+          no: t("common.no"),
         },
       });
       downloadWorkbook(sheets, todayFilename("negocio-completo"));
@@ -150,19 +151,7 @@ export function ProductInsightsView() {
           }
         />
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {periodOptions.map((opt) => (
-            <Button
-              key={opt.value}
-              type="button"
-              size="sm"
-              variant={period === opt.value ? "secondary" : "outline"}
-              onClick={() => setPeriod(opt.value)}
-            >
-              {opt.label}
-            </Button>
-          ))}
-        </div>
+        <PeriodFilter value={period} onChange={setPeriod} className="mb-6" />
 
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {t("business.inventorySection")}

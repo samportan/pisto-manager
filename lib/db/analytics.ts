@@ -47,8 +47,17 @@ export type BusinessCashPosition = {
   recurringExpenseCount: number;
 };
 
+export type BusinessPrevTotals = {
+  revenue: number;
+  purchases: number;
+  margin: number;
+  operatingProfit: number;
+  netProfit: number;
+};
+
 export type BusinessOverviewData = {
   monthTotals: { revenue: number; purchases: number; margin: number };
+  prevTotals: BusinessPrevTotals | null;
   pnl: BusinessPnl;
   cashPosition: BusinessCashPosition;
   series: { key: string; revenue: number; purchases: number; margin: number }[];
@@ -129,16 +138,19 @@ export type CustomerBalanceAgg = {
 
 export async function fetchBusinessOverview(
   orgId: string,
+  period: InsightsPeriod = "this_month",
   timezone = BUSINESS_TIMEZONE
 ): Promise<BusinessOverviewData> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_business_overview", {
     p_organization_id: orgId,
     p_timezone: timezone,
+    p_period: period,
   });
   if (error) throw error;
   const root = asRecord(data);
   const month = asRecord(root.month_totals);
+  const prev = root.prev_totals == null ? null : asRecord(root.prev_totals);
   const pnl = asRecord(root.pnl);
   const cash = asRecord(root.cash_position);
   const revenue = asNumber(month.revenue);
@@ -150,6 +162,15 @@ export async function fetchBusinessOverview(
       purchases,
       margin,
     },
+    prevTotals: prev
+      ? {
+          revenue: asNumber(prev.revenue),
+          purchases: asNumber(prev.purchases),
+          margin: asNumber(prev.margin),
+          operatingProfit: asNumber(prev.operating_profit),
+          netProfit: asNumber(prev.net_profit),
+        }
+      : null,
     pnl: {
       revenue: asNumber(pnl.revenue) || revenue,
       cogs: asNumber(pnl.cogs) || purchases,

@@ -6,6 +6,7 @@ import {
   getStockMovementsByOrgId,
   type ExportStockMovement,
 } from "@/lib/db/export-data";
+import { getExpensesByOrgId, type Expense } from "@/lib/db/expenses";
 import { getProductsByOrgId, type Product } from "@/lib/db/products";
 import {
   getPurchasesHeadersByOrgId,
@@ -131,6 +132,42 @@ export function purchaseLinesToRows(
     costo_unitario: line.unit_cost,
     total_linea: line.line_total,
   }));
+}
+
+export function expensesToRows(
+  expenses: Expense[],
+  labels: {
+    category: (key: string) => string;
+    subcategory: (key: string) => string;
+    paymentMethod: (key: string) => string;
+    yes: string;
+    no: string;
+  }
+): SheetRow[] {
+  return expenses.map((e) => ({
+    fecha: dateOnly(e.date),
+    categoria: labels.category(e.category),
+    concepto: labels.subcategory(e.subcategory),
+    monto: Number(e.amount),
+    metodo_pago: labels.paymentMethod(e.payment_method),
+    recurrente: e.is_recurring ? labels.yes : labels.no,
+    notas: e.notes ?? "",
+    id: e.id,
+  }));
+}
+
+export function buildExpensesWorkbook(
+  expenses: Expense[],
+  sheetName: string,
+  labels: {
+    category: (key: string) => string;
+    subcategory: (key: string) => string;
+    paymentMethod: (key: string) => string;
+    yes: string;
+    no: string;
+  }
+) {
+  return [{ name: sheetName, rows: expensesToRows(expenses, labels) }];
 }
 
 export function performanceToRows(ranking: ProductSalesRank[]): SheetRow[] {
@@ -279,9 +316,17 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
     saleLines: string;
     purchases: string;
     purchaseLines: string;
+    expenses: string;
     performance: string;
   };
   reasonLabels: StockAdjustmentReasonLabels;
+  expenseLabels: {
+    category: (key: string) => string;
+    subcategory: (key: string) => string;
+    paymentMethod: (key: string) => string;
+    yes: string;
+    no: string;
+  };
 }) {
   const [
     products,
@@ -291,6 +336,7 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
     saleLines,
     purchaseLines,
     movements,
+    expenses,
   ] = await Promise.all([
     getProductsByOrgId(args.orgId),
     getContactsByOrgId(args.orgId),
@@ -299,6 +345,7 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
     getSaleItemsByOrgId(args.orgId),
     getPurchaseItemsByOrgId(args.orgId),
     getStockMovementsByOrgId(args.orgId),
+    getExpensesByOrgId(args.orgId),
   ]);
 
   const saleLineCounts = countById(saleLines.map((l) => l.sale_id));
@@ -330,6 +377,7 @@ export async function buildFullBusinessWorkbookOnDemand(args: {
       name: args.labels.purchaseLines,
       rows: purchaseLinesToRows(purchaseLines, contacts),
     },
+    { name: args.labels.expenses, rows: expensesToRows(expenses, args.expenseLabels) },
     { name: args.labels.performance, rows: performanceToRows(args.ranking) },
   ];
 }

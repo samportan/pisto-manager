@@ -1,8 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  AlertTriangle,
+  Boxes,
+  Package,
+  Receipt,
+  ShoppingCart,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 
+import { PeriodFilter } from "@/components/analytics/period-filter";
 import {
   BusinessRevenuePurchasesChart,
   HorizontalBarChart,
@@ -11,9 +21,19 @@ import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { useBusinessOverview } from "@/hooks/useBusinessAnalytics";
 import { useT } from "@/hooks/useTranslations";
+import { percentChange } from "@/lib/analytics/personal";
+import {
+  insightsPeriodToMonth,
+  monthToInsightsPeriod,
+  type InsightsPeriod,
+} from "@/lib/analytics/shared";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { isOutOfStock } from "@/lib/stock";
-import { BUSINESS_TIMEZONE } from "@/lib/timezone";
+import {
+  BUSINESS_TIMEZONE,
+  calendarMonthKey,
+  formatZonedMonthYear,
+} from "@/lib/timezone";
 import { cn } from "@/lib/utils";
 
 function PnlRow({
@@ -23,6 +43,7 @@ function PnlRow({
   tone = "default",
   hint,
   emphasis = false,
+  shareOf,
 }: {
   label: string;
   value: number;
@@ -30,7 +51,10 @@ function PnlRow({
   tone?: "default" | "minus" | "result";
   hint?: string;
   emphasis?: boolean;
+  shareOf?: number;
 }) {
+  const width =
+    shareOf && shareOf > 0 ? Math.min(100, (Math.abs(value) / shareOf) * 100) : 0;
   return (
     <div
       className={cn(
@@ -38,7 +62,7 @@ function PnlRow({
         emphasis && "border-t border-border pt-3"
       )}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p
           className={cn(
             "text-sm",
@@ -49,6 +73,17 @@ function PnlRow({
           {tone === "minus" ? `− ${label}` : tone === "result" ? `= ${label}` : `+ ${label}`}
         </p>
         {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+        {shareOf != null && !emphasis ? (
+          <div className="mt-1.5 h-1.5 max-w-[12rem] overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full",
+                tone === "minus" ? "bg-amber-500/80" : "bg-emerald-500/80"
+              )}
+              style={{ width: `${width}%` }}
+            />
+          </div>
+        ) : null}
       </div>
       <p
         className={cn(
@@ -66,7 +101,8 @@ function PnlRow({
 export function BusinessOverview() {
   const { t, intlLocale, currency } = useT();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
-  const { data, isLoading } = useBusinessOverview();
+  const [period, setPeriod] = useState<InsightsPeriod>("this_month");
+  const { data, isLoading } = useBusinessOverview(period);
 
   const chartMonths = useMemo(() => {
     if (!data) return [];
@@ -74,6 +110,7 @@ export function BusinessOverview() {
       const [y, mo] = m.key.split("-").map(Number);
       const labelDate = new Date(Date.UTC(y, mo - 1, 15, 12, 0, 0));
       return {
+        key: m.key,
         label: labelDate.toLocaleDateString(undefined, {
           month: "short",
           year: "2-digit",
@@ -94,17 +131,82 @@ export function BusinessOverview() {
     [data]
   );
 
+  const viewingMonth = insightsPeriodToMonth(period);
+  const activeMonthKey = viewingMonth
+    ? calendarMonthKey(viewingMonth.year, viewingMonth.month)
+    : undefined;
+
   const lowStockCount = data?.lowStockCount ?? 0;
   const lowStockPreview = data?.lowStockPreview ?? [];
   const lowStockHref = "/dashboard/business/products?stock=low";
   const month = data?.monthTotals;
+  const prev = data?.prevTotals;
   const pnl = data?.pnl;
   const cash = data?.cashPosition;
+  const cashIn = cash ? cash.cashIncome + cash.bankIncome : 0;
+  const cashOut = cash ? cash.inventoryPurchases + cash.totalExpenses : 0;
+
+  const revenueDelta = prev ? percentChange(month?.revenue ?? 0, prev.revenue) : null;
+  const operatingDelta = prev
+    ? percentChange(pnl?.operatingProfit ?? 0, prev.operatingProfit)
+    : null;
+  const netDelta = prev ? percentChange(pnl?.netProfit ?? 0, prev.netProfit) : null;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight">{t("business.overviewTitle")}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{t("business.overviewSubtitle")}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("business.overviewTitle")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("business.overviewSubtitle")}</p>
+        </div>
+      </div>
+
+      <PeriodFilter
+        value={period}
+        onChange={setPeriod}
+        presets={["this_month", "last_month", "last_30_days", "all_time"]}
+        className="mt-6"
+      />
+
+      <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card p-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("business.pnlNetProfit")}
+        </p>
+        {isLoading || !pnl ? (
+          <div className="mt-2 h-12 w-48 animate-pulse rounded-lg bg-muted/50" />
+        ) : (
+          <div className="mt-2 flex flex-wrap items-baseline gap-3">
+            <p
+              className={cn(
+                "text-4xl font-bold tabular-nums tracking-tight sm:text-5xl",
+                pnl.netProfit < 0 ? "text-destructive" : "text-primary"
+              )}
+            >
+              {fmt(pnl.netProfit)}
+            </p>
+            {netDelta != null ? (
+              <span className="text-sm text-muted-foreground">
+                <span
+                  className={cn(
+                    "font-medium tabular-nums",
+                    netDelta > 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : netDelta < 0
+                        ? "text-destructive"
+                        : ""
+                  )}
+                >
+                  {netDelta > 0 ? "↑" : netDelta < 0 ? "↓" : "—"} {Math.abs(netDelta).toFixed(0)}%
+                </span>{" "}
+                {t("business.vsPreviousPeriod")}
+              </span>
+            ) : null}
+          </div>
+        )}
+        <p className="mt-2 text-sm text-muted-foreground">{t("business.overviewHeroHint")}</p>
+        <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
+      </section>
+
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {isLoading || !month || !pnl || !cash ? (
           <>
@@ -115,40 +217,38 @@ export function BusinessOverview() {
           </>
         ) : (
           <>
-            <StatCard title={t("business.revenue")} value={fmt(month.revenue)} />
+            <StatCard
+              title={t("business.revenue")}
+              value={fmt(month.revenue)}
+              icon={TrendingUp}
+              tone="positive"
+              delta={revenueDelta}
+              deltaLabel={t("business.vsPreviousPeriod")}
+              href="/dashboard/business/sales"
+            />
             <StatCard
               title={t("business.pnlOperatingProfit")}
               value={fmt(pnl.operatingProfit)}
+              icon={Wallet}
+              hint={t("business.pnlOperatingProfitHint")}
+              delta={operatingDelta}
+              deltaLabel={t("business.vsPreviousPeriod")}
             />
-            <StatCard title={t("business.pnlNetProfit")} value={fmt(pnl.netProfit)} />
-            <Link
+            <StatCard
+              title={t("business.cashAvailableBalance")}
+              value={fmt(cash.availableBalance)}
+              icon={Wallet}
+              tone={cash.availableBalance < 0 ? "danger" : "default"}
+              hint={t("business.cashPositionSubtitle")}
+              href="/dashboard/business/expenses"
+            />
+            <StatCard
+              title={t("business.lowStockItems")}
+              value={String(lowStockCount)}
+              icon={AlertTriangle}
+              tone={lowStockCount > 0 ? "danger" : "default"}
               href={lowStockHref}
-              className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <article
-                className={cn(
-                  "h-full rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30",
-                  lowStockCount > 0 ? "border-destructive/40" : "border-border"
-                )}
-              >
-                <p
-                  className={cn(
-                    "text-xs font-semibold uppercase tracking-wide",
-                    lowStockCount > 0 ? "text-destructive" : "text-muted-foreground"
-                  )}
-                >
-                  {t("business.lowStockItems")}
-                </p>
-                <p
-                  className={cn(
-                    "mt-2 text-2xl font-bold tabular-nums",
-                    lowStockCount > 0 && "text-destructive"
-                  )}
-                >
-                  {String(lowStockCount)}
-                </p>
-              </article>
-            </Link>
+            />
           </>
         )}
       </div>
@@ -161,12 +261,18 @@ export function BusinessOverview() {
             <div className="mt-4 h-56 animate-pulse rounded-lg bg-muted/50" />
           ) : (
             <div className="mt-2 divide-y divide-border/70">
-              <PnlRow label={t("business.pnlRevenue")} value={pnl.revenue} fmt={fmt} />
+              <PnlRow
+                label={t("business.pnlRevenue")}
+                value={pnl.revenue}
+                fmt={fmt}
+                shareOf={pnl.revenue}
+              />
               <PnlRow
                 label={t("business.pnlCogs")}
                 value={pnl.cogs}
                 fmt={fmt}
                 tone="minus"
+                shareOf={pnl.revenue}
               />
               <PnlRow
                 label={t("business.pnlGrossProfit")}
@@ -180,6 +286,7 @@ export function BusinessOverview() {
                 value={pnl.operatingExpenses}
                 fmt={fmt}
                 tone="minus"
+                shareOf={pnl.revenue}
               />
               <PnlRow
                 label={t("business.pnlOperatingProfit")}
@@ -194,12 +301,14 @@ export function BusinessOverview() {
                 value={pnl.financialExpenses}
                 fmt={fmt}
                 tone="minus"
+                shareOf={pnl.revenue}
               />
               <PnlRow
                 label={t("business.pnlPersonalExpenses")}
                 value={pnl.personalExpenses}
                 fmt={fmt}
                 tone="minus"
+                shareOf={pnl.revenue}
               />
               <PnlRow
                 label={t("business.pnlNetProfit")}
@@ -234,6 +343,20 @@ export function BusinessOverview() {
                 >
                   {fmt(cash.availableBalance)}
                 </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <p className="text-xs text-muted-foreground">{t("business.cashInTotal")}</p>
+                  <p className="mt-0.5 font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {fmt(cashIn)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border px-3 py-2">
+                  <p className="text-xs text-muted-foreground">{t("business.cashOutTotal")}</p>
+                  <p className="mt-0.5 font-semibold tabular-nums text-amber-600">
+                    {fmt(cashOut)}
+                  </p>
+                </div>
               </div>
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between gap-3">
@@ -322,19 +445,36 @@ export function BusinessOverview() {
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">{t("business.revenueVsPurchases")}</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("business.chartLast6Months")}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("business.chartClickMonth")}</p>
           <div className="mt-4">
             {isLoading ? (
               <div className="h-[200px] animate-pulse rounded-lg bg-muted/50" />
             ) : (
-              <BusinessRevenuePurchasesChart data={chartMonths} />
+              <BusinessRevenuePurchasesChart
+                data={chartMonths}
+                activeKey={activeMonthKey}
+                onSelectMonth={(key) => {
+                  const [y, mo] = key.split("-").map(Number);
+                  setPeriod(monthToInsightsPeriod(y, mo));
+                }}
+              />
             )}
           </div>
         </section>
 
         <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold">{t("business.topProductsThisMonth")}</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("business.thisMonth")}</p>
+          <h2 className="text-sm font-semibold">{t("business.topProductsPeriod")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground capitalize">
+            {period === "all_time"
+              ? t("business.periodAllTime")
+              : period === "last_30_days"
+                ? t("business.period30Days")
+                : period === "today"
+                  ? t("business.periodToday")
+                  : viewingMonth
+                    ? formatZonedMonthYear(viewingMonth.year, viewingMonth.month, intlLocale)
+                    : t("business.thisMonth")}
+          </p>
           <div className="mt-4">
             {isLoading ? (
               <div className="h-[200px] animate-pulse rounded-lg bg-muted/50" />
@@ -348,21 +488,52 @@ export function BusinessOverview() {
         </section>
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <Quick href="/dashboard/business/products" label={t("business.manageProducts")} />
-        <Quick href="/dashboard/business/sales" label={t("business.newSale")} />
-        <Quick href="/dashboard/business/expenses" label={t("business.newExpense")} />
+      <div className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold">{t("business.quickActions")}</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Quick
+            href="/dashboard/business/sales/new"
+            label={t("business.newSale")}
+            icon={ShoppingCart}
+          />
+          <Quick
+            href="/dashboard/business/purchases/new"
+            label={t("business.newPurchase")}
+            icon={Boxes}
+          />
+          <Quick
+            href="/dashboard/business/expenses"
+            label={t("business.newExpense")}
+            icon={Receipt}
+          />
+          <Quick
+            href="/dashboard/business/products"
+            label={t("business.manageProducts")}
+            icon={Package}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-function Quick({ href, label }: { href: string; label: string }) {
+function Quick({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  icon: typeof Package;
+}) {
   return (
     <Link
       href={href}
-      className="rounded-xl border border-border bg-card p-4 text-sm font-medium transition-colors hover:bg-muted/30"
+      className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/30"
     >
+      <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+        <Icon className="size-5" aria-hidden />
+      </span>
       {label}
     </Link>
   );

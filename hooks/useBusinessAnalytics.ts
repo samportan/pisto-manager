@@ -11,7 +11,8 @@ import {
 } from "@/lib/db/analytics";
 
 export const businessAnalyticsKeys = {
-  overview: (orgId: string) => ["business-overview", orgId] as const,
+  overview: (orgId: string, period: InsightsPeriod) =>
+    ["business-overview", orgId, period] as const,
   saleInsights: (orgId: string, period: InsightsPeriod) =>
     ["sale-insights", orgId, period] as const,
   productInsights: (orgId: string, period: InsightsPeriod) =>
@@ -23,14 +24,17 @@ function useBusinessOrgId() {
   return activeOrg.kind === "business" ? activeOrgId : null;
 }
 
-export function useBusinessOverview() {
+export function useBusinessOverview(period: InsightsPeriod = "this_month") {
   const { userId, sessionReady } = useAuthUserId();
   const orgId = useBusinessOrgId();
 
   const query = useQuery({
-    queryKey: orgId ? businessAnalyticsKeys.overview(orgId) : ["business-overview", "idle"],
-    queryFn: () => fetchBusinessOverview(orgId!),
+    queryKey: orgId
+      ? businessAnalyticsKeys.overview(orgId, period)
+      : ["business-overview", "idle"],
+    queryFn: () => fetchBusinessOverview(orgId!, period),
     enabled: sessionReady && !!userId && !!orgId,
+    placeholderData: (previous) => previous,
   });
 
   return {
@@ -51,6 +55,7 @@ export function useSaleInsights(period: InsightsPeriod, walkInLabel: string) {
       : ["sale-insights", "idle"],
     queryFn: () => fetchSaleInsights(orgId!, period, walkInLabel),
     enabled: sessionReady && !!userId && !!orgId,
+    placeholderData: (previous) => previous,
   });
 
   return {
@@ -71,6 +76,7 @@ export function useProductInsightsAgg(period: InsightsPeriod) {
       : ["product-insights-agg", "idle"],
     queryFn: () => fetchProductInsights(orgId!, period),
     enabled: sessionReady && !!userId && !!orgId,
+    placeholderData: (previous) => previous,
   });
 
   return {

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AddTransactionSheet } from "@/components/add-transaction-sheet";
 import { EditTransactionSheet } from "@/components/edit-transaction-sheet";
+import { PeriodFilter } from "@/components/analytics/period-filter";
 import {
   CategoryBreakdownChart,
   IncomeExpenseBarChart,
@@ -29,7 +30,12 @@ import {
   getMonthTotals,
   percentChange,
 } from "@/lib/analytics/personal";
+import {
+  insightsPeriodToMonth,
+  type InsightsPeriod,
+} from "@/lib/analytics/shared";
 import { formatMoney } from "@/lib/format-money";
+import { formatZonedMonthYear, getZonedParts, shiftCalendarMonth } from "@/lib/timezone";
 import { transactionsToRows } from "@/lib/transaction-display";
 import { isSupabaseConfigured } from "@/lib/supabase-config";
 import type { Transaction } from "@/lib/db/transactions";
@@ -57,6 +63,7 @@ export function OverviewDashboard() {
   const [txOpen, setTxOpen] = React.useState(false);
   const [editTx, setEditTx] = React.useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const [period, setPeriod] = React.useState<InsightsPeriod>("this_month");
 
   const { accounts, isLoading: accountsLoading } = useAccounts();
   const { categories, isLoading: categoriesLoading } = useCategories();
@@ -66,7 +73,7 @@ export function OverviewDashboard() {
     deleteTransaction,
     isDeleting,
     deleteError,
-  } = useTransactions({ recentMonths: 8 });
+    } = useTransactions({ recentMonths: 18 });
   const {
     summary,
     isLoading: summaryLoading,
@@ -82,15 +89,17 @@ export function OverviewDashboard() {
     ? summary.totalNetWorth - summary.totalBalanceExcludingCreditAndLoans
     : null;
 
-  const now = new Date();
-  const thisMonth = getMonthTotals(transactions, now.getUTCFullYear(), now.getUTCMonth());
-  const prevDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
-  const lastMonth = getMonthTotals(
-    transactions,
-    prevDate.getUTCFullYear(),
-    prevDate.getUTCMonth()
-  );
-  const spentChange = percentChange(thisMonth.expense, lastMonth.expense);
+  const viewing = insightsPeriodToMonth(period) ?? getZonedParts(new Date());
+  const prevMonth = shiftCalendarMonth(viewing.year, viewing.month, -1);
+  const selectedMonth = getMonthTotals(transactions, viewing.year, viewing.month);
+  const previousMonth = getMonthTotals(transactions, prevMonth.year, prevMonth.month);
+  const spentChange = percentChange(selectedMonth.expense, previousMonth.expense);
+  const spentLabel =
+    period === "this_month"
+      ? t("dashboard.spentThisMonth")
+      : t("dashboard.spentInMonth", {
+          month: formatZonedMonthYear(viewing.year, viewing.month, intlLocale),
+        });
 
   const chartMonths = React.useMemo(
     () => getLastNMonthsTotals(transactions, 6),
@@ -107,10 +116,10 @@ export function OverviewDashboard() {
       getExpensesByCategory(
         transactions,
         categoryMap,
-        now.getUTCFullYear(),
-        now.getUTCMonth()
+        viewing.year,
+        viewing.month
       ),
-    [transactions, categoryMap, now]
+    [transactions, categoryMap, viewing.year, viewing.month]
   );
 
   const recentRows = React.useMemo(() => {
@@ -145,6 +154,13 @@ export function OverviewDashboard() {
             {t("dashboard.addTransaction")}
           </Button>
         </section>
+
+        <PeriodFilter
+          value={period}
+          onChange={setPeriod}
+          presets={["this_month", "last_month"]}
+          className="mb-6"
+        />
 
         <section className="mb-6 rounded-xl border border-border bg-card p-6">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -235,14 +251,14 @@ export function OverviewDashboard() {
               </span>
             </div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t("dashboard.spentThisMonth")}
+              {spentLabel}
             </p>
-            {live && loadingMetrics ? (
+            {live && loadingLists ? (
               <Skeleton className="mt-2 h-8 w-28" />
-            ) : live && summary ? (
+            ) : live ? (
               <div className="mt-2 flex flex-wrap items-baseline gap-2">
                 <p className="text-2xl font-bold tabular-nums text-destructive">
-                  {fmt(summary.totalSpentThisMonth)}
+                  {fmt(selectedMonth.expense)}
                 </p>
                 <ChangeBadge value={spentChange} />
               </div>
@@ -250,7 +266,7 @@ export function OverviewDashboard() {
               <p className="mt-2 text-2xl font-bold tabular-nums text-muted-foreground">—</p>
             )}
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-              {t("dashboard.spentThisMonthHint")}
+              {t("dashboard.spentInMonthHint")}
             </p>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/40" />
           </article>
@@ -267,7 +283,9 @@ export function OverviewDashboard() {
             </article>
             <article className="rounded-xl border border-border bg-card p-5">
               <h2 className="text-base font-semibold">{t("dashboard.byCategory")}</h2>
-              <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.thisMonth")}</p>
+              <p className="mt-1 text-xs text-muted-foreground capitalize">
+                {formatZonedMonthYear(viewing.year, viewing.month, intlLocale)}
+              </p>
               <div className="mt-4">
                 <CategoryBreakdownChart data={categoryBreakdown} />
               </div>

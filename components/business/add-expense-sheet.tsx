@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/hooks/useTranslations";
+import type { Expense } from "@/lib/db/expenses";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_PAYMENT_METHODS,
@@ -26,7 +27,7 @@ import {
   type ExpensePaymentMethod,
   type NewExpense,
 } from "@/lib/db/expenses";
-import { parseMoneyInput } from "@/lib/money";
+import { formatMoneyInputValue, parseMoneyInput } from "@/lib/money";
 import { toZonedDateString } from "@/lib/timezone";
 
 type ExpenseFormValues = Omit<NewExpense, "user_id" | "organization_id">;
@@ -36,10 +37,18 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: ExpenseFormValues) => Promise<void>;
   isSubmitting?: boolean;
+  expense?: Expense | null;
 };
 
-export function AddExpenseSheet({ open, onOpenChange, onSubmit, isSubmitting }: Props) {
+export function AddExpenseSheet({
+  open,
+  onOpenChange,
+  onSubmit,
+  isSubmitting,
+  expense,
+}: Props) {
   const { t } = useT();
+  const isEdit = Boolean(expense);
   const [amount, setAmount] = React.useState("");
   const [date, setDate] = React.useState(() => toZonedDateString(new Date()));
   const [category, setCategory] = React.useState<ExpenseCategory>("operating");
@@ -56,15 +65,25 @@ export function AddExpenseSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
 
   React.useEffect(() => {
     if (!open) return;
-    setAmount("");
-    setDate(toZonedDateString(new Date()));
-    setCategory("operating");
-    setSubcategory(EXPENSE_SUBCATEGORIES_BY_CATEGORY.operating[0]);
-    setPaymentMethod("petty_cash");
-    setIsRecurring(false);
-    setNotes("");
+    if (expense) {
+      setAmount(formatMoneyInputValue(expense.amount));
+      setDate(toZonedDateString(expense.date));
+      setCategory(expense.category);
+      setSubcategory(expense.subcategory);
+      setPaymentMethod(expense.payment_method);
+      setIsRecurring(expense.is_recurring);
+      setNotes(expense.notes ?? "");
+    } else {
+      setAmount("");
+      setDate(toZonedDateString(new Date()));
+      setCategory("operating");
+      setSubcategory(EXPENSE_SUBCATEGORIES_BY_CATEGORY.operating[0]);
+      setPaymentMethod("petty_cash");
+      setIsRecurring(false);
+      setNotes("");
+    }
     setError(null);
-  }, [open]);
+  }, [open, expense]);
 
   React.useEffect(() => {
     if (!subcategories.includes(subcategory)) {
@@ -109,8 +128,14 @@ export function AddExpenseSheet({ open, onOpenChange, onSubmit, isSubmitting }: 
     >
       <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-md">
         <SheetHeader className="border-b border-border px-4 py-4 text-left">
-          <SheetTitle>{t("business.newExpenseTitle")}</SheetTitle>
-          <SheetDescription>{t("business.newExpenseDescription")}</SheetDescription>
+          <SheetTitle>
+            {isEdit ? t("business.editExpenseTitle") : t("business.newExpenseTitle")}
+          </SheetTitle>
+          <SheetDescription>
+            {isEdit
+              ? t("business.editExpenseDescription")
+              : t("business.newExpenseDescription")}
+          </SheetDescription>
         </SheetHeader>
         <form
           onSubmit={(e) => {

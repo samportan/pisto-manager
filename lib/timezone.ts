@@ -56,6 +56,31 @@ export function subtractZonedDays(dateStr: string, days: number): string {
   return toZonedDateString(new Date(utc));
 }
 
+export function shiftCalendarMonth(
+  year: number,
+  month: number,
+  delta: number
+): { year: number; month: number } {
+  const d = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
+}
+
+export function formatZonedMonthYear(
+  year: number,
+  month: number,
+  locale = "es-SV"
+): string {
+  return new Date(Date.UTC(year, month - 1, 15, 12, 0, 0)).toLocaleDateString(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: BUSINESS_TIMEZONE,
+  });
+}
+
+export function calendarMonthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
 /** Midnight local → UTC ISO (El Salvador is always UTC-6). */
 export function localDayStartUtcIso(localDateStr: string): string {
   const [y, m, d] = localDateStr.split("-").map(Number);
