@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { toRpcMoney } from "../money";
 import type { PurchasePaymentMethod } from "./purchases";
 
 export type PurchasePayment = {
@@ -55,7 +56,7 @@ export async function recordPurchasePayment(args: {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("record_purchase_payment", {
     p_purchase_id: args.purchase_id,
-    p_amount: args.amount,
+    p_amount: toRpcMoney(args.amount),
     p_payment_method: args.payment_method,
     p_date: args.date ?? new Date().toISOString(),
     p_notes: args.notes ?? null,

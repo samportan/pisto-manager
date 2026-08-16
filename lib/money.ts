@@ -40,6 +40,25 @@ export function sumMoney(...values: number[]): number {
   return fromMilli(totalMilli);
 }
 
+/** Integer milli comparison — avoids IEEE float false exceeds on values like 12.55. */
+export function isMoneyGreater(a: number, b: number): boolean {
+  return toMilli(a) > toMilli(b);
+}
+
+/**
+ * Exact decimal string for RPC numeric params.
+ * JSON numbers are float64; 12.55 becomes ~12.550000000000001 and can fail
+ * Postgres `amount > balance` checks against exact numeric balances.
+ */
+export function toRpcMoney(value: number): string {
+  const milli = toMilli(value);
+  const negative = milli < 0;
+  const abs = Math.abs(milli);
+  const whole = Math.trunc(abs / MILLI_FACTOR);
+  const frac = String(abs % MILLI_FACTOR).padStart(MONEY_SCALE, "0");
+  return `${negative ? "-" : ""}${whole}.${frac}`;
+}
+
 export function applyCardSurcharge(subtotal: number): number {
   return truncMoney(subtotal * CARD_SURCHARGE_RATE, MONEY_SCALE);
 }

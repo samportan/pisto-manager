@@ -27,7 +27,7 @@ import type { Contact } from "@/lib/db/contacts";
 import { previewCustomerPaymentFifo } from "@/lib/db/sale-payments";
 import type { PaymentMethod } from "@/lib/db/sales";
 import { formatMoneyDisplay } from "@/lib/format-money";
-import { formatMoneyInputValue } from "@/lib/money";
+import { formatMoneyInputValue, isMoneyGreater, sumMoney } from "@/lib/money";
 
 type Props = {
   contact: Contact | null;
@@ -57,7 +57,7 @@ export function CustomerDebtSheet({ contact, open, onOpenChange }: Props) {
   const [notes, setNotes] = React.useState("");
 
   const totalDue = React.useMemo(
-    () => sales.reduce((sum, s) => sum + Number(s.balance_due), 0),
+    () => sumMoney(...sales.map((s) => Number(s.balance_due))),
     [sales]
   );
 
@@ -91,7 +91,7 @@ export function CustomerDebtSheet({ contact, open, onOpenChange }: Props) {
       toast.error("business.errorPaymentAmount");
       return;
     }
-    if (parsedAmount > totalDue) {
+    if (isMoneyGreater(parsedAmount, totalDue)) {
       toast.error("business.errorPaymentExceedsBalance");
       return;
     }

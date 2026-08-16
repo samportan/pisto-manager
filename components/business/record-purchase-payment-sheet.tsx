@@ -21,6 +21,7 @@ import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import type { PurchasePaymentMethod, PurchaseWithMeta } from "@/lib/db/purchases";
 import { formatMoneyDisplay } from "@/lib/format-money";
+import { isMoneyGreater } from "@/lib/money";
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
 
 type Props = {
@@ -63,7 +64,7 @@ export function RecordPurchasePaymentSheet({
       toast.error("business.errorPaymentAmount");
       return;
     }
-    if (parsed > Number(purchase.balance_due)) {
+    if (isMoneyGreater(parsed, Number(purchase.balance_due))) {
       toast.error("business.errorPaymentExceedsBalance");
       return;
     }

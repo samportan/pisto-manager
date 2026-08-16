@@ -1,4 +1,5 @@
 import { createClient } from "../client";
+import { fromMilli, toMilli, toRpcMoney } from "../money";
 import type { PaymentMethod } from "./sales";
 
 export type SalePayment = {
@@ -53,7 +54,7 @@ export async function recordSalePayment(args: {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("record_sale_payment", {
     p_sale_id: args.sale_id,
-    p_amount: args.amount,
+    p_amount: toRpcMoney(args.amount),
     p_payment_method: args.payment_method,
     p_date: args.date ?? new Date().toISOString(),
     p_notes: args.notes ?? null,
@@ -85,25 +86,25 @@ export function previewCustomerPaymentFifo(
   openSales: { id: string; date: string; balance_due: number }[],
   amount: number
 ): FifoAllocationPreview[] {
-  if (amount <= 0) return [];
-  let remaining = amount;
+  let remainingMilli = toMilli(amount);
+  if (remainingMilli <= 0) return [];
   const sorted = [...openSales].sort((a, b) => {
     const byDate = a.date.localeCompare(b.date);
     return byDate !== 0 ? byDate : a.id.localeCompare(b.id);
   });
   const preview: FifoAllocationPreview[] = [];
   for (const sale of sorted) {
-    if (remaining <= 0) break;
-    const balance = Number(sale.balance_due);
-    if (balance <= 0) continue;
-    const applied = Math.min(remaining, balance);
+    if (remainingMilli <= 0) break;
+    const balanceMilli = toMilli(Number(sale.balance_due));
+    if (balanceMilli <= 0) continue;
+    const appliedMilli = Math.min(remainingMilli, balanceMilli);
     preview.push({
       sale_id: sale.id,
       date: sale.date,
-      balance_due: balance,
-      applied,
+      balance_due: fromMilli(balanceMilli),
+      applied: fromMilli(appliedMilli),
     });
-    remaining -= applied;
+    remainingMilli -= appliedMilli;
   }
   return preview;
 }
@@ -120,7 +121,7 @@ export async function recordCustomerPayment(args: {
   const { data, error } = await supabase.rpc("record_customer_payment", {
     p_organization_id: args.organization_id,
     p_customer_id: args.customer_id,
-    p_amount: args.amount,
+    p_amount: toRpcMoney(args.amount),
     p_payment_method: args.payment_method,
     p_date: args.date ?? new Date().toISOString(),
     p_notes: args.notes ?? null,
