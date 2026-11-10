@@ -2,9 +2,9 @@
   "auth": {
     "eyebrow": "Pisto",
     "loginTitle": "Welcome back",
-    "loginSubtitle": "Sign in to manage your money.",
+    "loginSubtitle": "Sign in to run your business.",
     "signupTitle": "Create your account",
-    "signupSubtitle": "Start tracking your finances in minutes.",
+    "signupSubtitle": "Start running your business in minutes.",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
     "password": "Password",
@@ -27,7 +27,7 @@
     "passwordMismatch": "Passwords do not match.",
     "passwordTooShort": "Use at least 8 characters for your password.",
     "checkInbox": "Check your inbox to confirm your email, then you can sign in.",
-    "termsNotice": "By continuing you agree to your own terms — this is a personal app.",
+    "termsNotice": "By continuing you agree to your own terms. This app runs your business.",
     "signOut": "Sign out",
     "signingOut": "Signing out…"
   },
@@ -44,7 +44,11 @@
     "purchases": "Purchases",
     "expenses": "Expenses",
     "personal": "Personal",
-    "switchOrg": "Switch organization"
+    "switchOrg": "Switch organization",
+    "noBusiness": "No business",
+    "createBusiness": "Create business",
+    "needBusinessTitle": "Create your business",
+    "needBusinessBody": "Pisto runs sales, stock, purchases, and business expenses."
   },
   "dashboard": {
     "title": "Overview",

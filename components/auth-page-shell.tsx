@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 type AuthPageShellProps = {
   title: string;
   subtitle: string;
+  footer?: string;
   eyebrow?: string;
   children: ReactNode;
 };
@@ -12,6 +13,7 @@ type AuthPageShellProps = {
 export function AuthPageShell({
   title,
   subtitle,
+  footer,
   eyebrow = "Pisto",
   children,
 }: AuthPageShellProps) {
@@ -42,9 +44,9 @@ export function AuthPageShell({
           {children}
         </div>
 
-        <p className="mt-8 text-center text-xs text-muted-foreground/70">
-          By continuing you agree to your own terms — this is a personal app.
-        </p>
+        {footer ? (
+          <p className="mt-8 text-center text-xs text-muted-foreground/70">{footer}</p>
+        ) : null}
       </main>
     </div>
   );

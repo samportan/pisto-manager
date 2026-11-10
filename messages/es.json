@@ -2,9 +2,9 @@
   "auth": {
     "eyebrow": "Pisto",
     "loginTitle": "Bienvenido de nuevo",
-    "loginSubtitle": "Inicia sesión para administrar tu dinero.",
+    "loginSubtitle": "Inicia sesión para administrar tu negocio.",
     "signupTitle": "Crea tu cuenta",
-    "signupSubtitle": "Empieza a controlar tus finanzas en minutos.",
+    "signupSubtitle": "Empieza a administrar tu negocio en minutos.",
     "email": "Correo electrónico",
     "emailPlaceholder": "tu@ejemplo.com",
     "password": "Contraseña",
@@ -27,7 +27,7 @@
     "passwordMismatch": "Las contraseñas no coinciden.",
     "passwordTooShort": "Usa al menos 8 caracteres en tu contraseña.",
     "checkInbox": "Revisa tu bandeja de entrada para confirmar tu correo y luego inicia sesión.",
-    "termsNotice": "Al continuar aceptas tus propios términos — esta es una app personal.",
+    "termsNotice": "Al continuar aceptas tus propios términos. Esta app administra tu negocio.",
     "signOut": "Cerrar sesión",
     "signingOut": "Cerrando sesión…"
   },
@@ -44,7 +44,11 @@
     "purchases": "Compras",
     "expenses": "Gastos",
     "personal": "Personal",
-    "switchOrg": "Cambiar organización"
+    "switchOrg": "Cambiar organización",
+    "noBusiness": "Sin negocio",
+    "createBusiness": "Crear negocio",
+    "needBusinessTitle": "Crea tu negocio",
+    "needBusinessBody": "Pisto administra ventas, stock, compras y gastos del negocio."
   },
   "dashboard": {
     "title": "Resumen",

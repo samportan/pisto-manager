@@ -5,13 +5,8 @@ import { usePathname } from "next/navigation";
 import { LogOut, Settings } from "lucide-react";
 import { TeamSwitcher } from "@/components/nav/team-switcher";
 import { useSignOut } from "@/components/sign-out-button";
-import {
-  businessNavItems,
-  isNavActive,
-  personalNavItems,
-} from "@/components/nav/nav-config";
+import { businessNavItems, isNavActive } from "@/components/nav/nav-config";
 import { cn } from "@/lib/utils";
-import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { usePrefetchBusinessRoute } from "@/hooks/usePrefetchBusinessRoute";
 import { useT } from "@/hooks/useTranslations";
 import {
@@ -32,10 +27,9 @@ export function AppSidebar({ email }: { email: string | null }) {
   const pathname = usePathname();
   const { t } = useT();
   const { signOut, pending } = useSignOut();
-  const { activeOrg } = useActiveOrganization();
   const prefetchRoute = usePrefetchBusinessRoute();
   const shortEmail = email?.includes("@") ? email.split("@")[0] : email;
-  const navItems = activeOrg.kind === "business" ? businessNavItems : personalNavItems;
+  const navItems = businessNavItems;
 
   return (
     <Sidebar collapsible="icon">
@@ -49,7 +43,7 @@ export function AppSidebar({ email }: { email: string | null }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            {activeOrg.kind === "business" ? t("nav.business") : t("nav.personal")}
+            {t("nav.business")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

@@ -30,15 +30,17 @@ export function DashboardShell({
         <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/70 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/50 md:px-6 transition-colors">
           <SidebarTrigger className="inline-flex shrink-0" />
           <Link
-            href="/dashboard"
+            href="/dashboard/business"
             className="flex items-center gap-2 md:hidden"
           >
             <PistoLogo size={32} showLabel />
           </Link>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground sm:inline">
-              {activeOrg.kind === "business" ? activeOrg.name : "Personal"}
-            </span>
+            {activeOrg.kind === "business" ? (
+              <span className="hidden rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground sm:inline">
+                {activeOrg.name}
+              </span>
+            ) : null}
             {email ? (
               <span className="hidden max-w-[14rem] truncate text-sm text-muted-foreground lg:inline">
                 {email}

@@ -2,33 +2,28 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { logSupabaseConnectionOnce } from '@/lib/supabase-connection-log'
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from '@/lib/supabase-config'
-import { getWorkspaceModeFromRequest } from '@/lib/workspace'
+
+function isPersonalFinancePath(pathname: string): boolean {
+  return (
+    pathname === '/dashboard' ||
+    pathname.startsWith('/dashboard/transactions') ||
+    pathname.startsWith('/dashboard/budgets') ||
+    pathname.startsWith('/dashboard/accounts')
+  )
+}
 
 function applyWorkspaceRedirect(request: NextRequest, response: NextResponse): NextResponse {
   const pathname = request.nextUrl.pathname
-  const mode = getWorkspaceModeFromRequest(request.cookies)
+  if (!isPersonalFinancePath(pathname)) return response
 
-  if (pathname === '/dashboard' && mode === 'business') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard/business'
-    const redirect = NextResponse.redirect(url, 307)
-    response.cookies.getAll().forEach((cookie) => {
-      redirect.cookies.set(cookie.name, cookie.value)
-    })
-    return redirect
-  }
-
-  if (pathname.startsWith('/dashboard/business') && mode === 'personal') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    const redirect = NextResponse.redirect(url, 307)
-    response.cookies.getAll().forEach((cookie) => {
-      redirect.cookies.set(cookie.name, cookie.value)
-    })
-    return redirect
-  }
-
-  return response
+  const url = request.nextUrl.clone()
+  url.pathname = '/dashboard/business'
+  url.search = ''
+  const redirect = NextResponse.redirect(url, 307)
+  response.cookies.getAll().forEach((cookie) => {
+    redirect.cookies.set(cookie.name, cookie.value)
+  })
+  return redirect
 }
 
 export async function updateSession(request: NextRequest) {
@@ -105,8 +100,7 @@ export async function updateSession(request: NextRequest) {
     (pathname.startsWith("/login") || pathname.startsWith("/signup"))
   ) {
     const url = request.nextUrl.clone()
-    const mode = getWorkspaceModeFromRequest(request.cookies)
-    url.pathname = mode === "business" ? "/dashboard/business" : "/dashboard"
+    url.pathname = "/dashboard/business"
     url.search = ""
     const redirect = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach((cookie) => {

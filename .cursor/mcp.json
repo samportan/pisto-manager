@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "codegraph": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "--yes",
+        "@colbymchenry/codegraph",
+        "serve",
+        "--mcp",
+        "--path",
+        "C:\\Users\\js_pr\\OneDrive\\Escritorio\\Desktop\\SAMUEL\\pisto-manager"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--use-system-ca"
+      }
+    }
+  }
+}
