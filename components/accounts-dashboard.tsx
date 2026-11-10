@@ -118,7 +118,6 @@ export function AccountsDashboard() {
             </dl>
           </div>
         </div>
-        <div className="mt-6 h-1 w-16 rounded-full bg-accent" />
       </section>
 
       {useLive && error ? (

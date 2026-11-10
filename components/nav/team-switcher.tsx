@@ -31,7 +31,7 @@ export function TeamSwitcher() {
         <Button
           type="button"
           variant="ghost"
-          className="h-auto w-full justify-between border border-sidebar-border/60 px-2 py-2"
+          className="h-auto w-full justify-between border border-sidebar-border bg-transparent px-2 py-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
           onClick={() => setOpen((v) => !v)}
         >
           <span className="truncate text-left text-sm font-semibold">

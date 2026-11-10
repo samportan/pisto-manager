@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { cookies } from "next/headers";
-import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { I18nRoot } from "@/components/i18n-root";
 import { QueryProvider } from "@/components/query-provider";
 import { SupabaseConnectionLogger } from "@/components/supabase-connection-logger";
@@ -15,7 +15,7 @@ import {
 } from "@/lib/i18n/config";
 import "./globals.css";
 
-const fontSans = Plus_Jakarta_Sans({
+const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-family-sans",
   display: "swap",

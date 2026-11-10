@@ -48,7 +48,7 @@ function ChangeBadge({ value }: { value: number | null }) {
   return (
     <span
       className={`text-xs font-medium tabular-nums ${
-        up ? "text-destructive" : down ? "text-emerald-600" : "text-muted-foreground"
+        up ? "text-destructive" : down ? "text-success" : "text-muted-foreground"
       }`}
     >
       {up ? "↑" : down ? "↓" : "—"} {Math.abs(value).toFixed(0)}% {t("dashboard.vsLastMonth")}
@@ -169,15 +169,14 @@ export function OverviewDashboard() {
           {live && loadingMetrics ? (
             <Skeleton className="mt-2 h-12 w-48 max-w-full sm:h-14 sm:w-56" />
           ) : live && summary ? (
-            <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl text-primary">
+            <p className="mt-3 font-display text-4xl tabular-nums tracking-tight sm:text-5xl text-primary">
               {fmt(summary.totalNetWorth)}
             </p>
           ) : (
-            <p className="mt-2 text-4xl font-bold tabular-nums tracking-tight sm:text-5xl text-muted-foreground">
+            <p className="mt-3 font-display text-4xl tabular-nums tracking-tight sm:text-5xl text-muted-foreground">
               —
             </p>
           )}
-          <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
           {summaryError && live ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <p className="text-sm text-destructive" role="alert">
@@ -217,7 +216,6 @@ export function OverviewDashboard() {
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
               {t("dashboard.balanceHint")}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/30" />
           </article>
 
           <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-accent/50 transition-colors">
@@ -241,7 +239,6 @@ export function OverviewDashboard() {
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
               {t("dashboard.creditAndLoansHint")}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-accent" />
           </article>
 
           <article className="rounded-xl border border-border bg-card p-5 relative overflow-hidden group hover:border-primary/50 transition-colors">
@@ -268,7 +265,6 @@ export function OverviewDashboard() {
             <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
               {t("dashboard.spentInMonthHint")}
             </p>
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary/40" />
           </article>
         </section>
 
@@ -350,7 +346,7 @@ export function OverviewDashboard() {
 
       <Button
         size="icon-lg"
-        className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 size-12 rounded-full md:bottom-8 md:right-8 bg-accent hover:bg-accent/90 text-accent-foreground shadow-md hover:shadow-lg transition-all"
+        className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 z-30 size-12 rounded-full md:bottom-8 md:right-8"
         type="button"
         aria-label={t("dashboard.addTransaction")}
         onClick={() => setTxOpen(true)}

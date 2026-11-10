@@ -100,6 +100,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
       {
         accessorKey: "sale_price",
         header: t("business.sale"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <span className="tabular-nums">{fmt(Number(row.original.sale_price))}</span>
         ),
@@ -107,6 +108,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
       {
         accessorKey: "cost_price",
         header: t("business.cost"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <span className="tabular-nums text-muted-foreground">
             {fmt(Number(row.original.cost_price))}

@@ -5,6 +5,7 @@ type PistoLogoProps = {
   showLabel?: boolean;
   className?: string;
   labelClassName?: string;
+  tone?: "default" | "inverse" | "panel";
 };
 
 export function PistoLogo({
@@ -12,7 +13,10 @@ export function PistoLogo({
   showLabel = false,
   className,
   labelClassName,
+  tone = "default",
 }: PistoLogoProps) {
+  const onInverse = tone === "inverse";
+  const onPanel = tone === "panel";
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <svg
@@ -25,16 +29,39 @@ export function PistoLogo({
         role={showLabel ? "img" : undefined}
         aria-label={showLabel ? "Pisto" : undefined}
       >
-        <rect width="32" height="32" rx="7" className="fill-primary" />
+        <rect
+          width="32"
+          height="32"
+          rx="7"
+          className={
+            onPanel
+              ? "fill-[oklch(0.96_0.01_250)]"
+              : onInverse
+                ? "fill-primary-foreground"
+                : "fill-primary"
+          }
+        />
         <path
           d="M11 9v14"
-          className="stroke-primary-foreground"
+          className={
+            onPanel
+              ? "stroke-[oklch(0.24_0.05_258)]"
+              : onInverse
+                ? "stroke-primary"
+                : "stroke-primary-foreground"
+          }
           strokeWidth="3.2"
           strokeLinecap="round"
         />
         <path
           d="M11 9h5.2c3.3 0 5.3 2 5.3 5.1c0 3.1-2 5.1-5.3 5.1H11"
-          className="stroke-primary-foreground"
+          className={
+            onPanel
+              ? "stroke-[oklch(0.24_0.05_258)]"
+              : onInverse
+                ? "stroke-primary"
+                : "stroke-primary-foreground"
+          }
           strokeWidth="3.2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -44,7 +71,7 @@ export function PistoLogo({
       {showLabel ? (
         <span
           className={cn(
-            "text-sm font-bold tracking-tight text-foreground",
+            "font-display text-lg font-medium tracking-tight text-foreground",
             labelClassName
           )}
         >

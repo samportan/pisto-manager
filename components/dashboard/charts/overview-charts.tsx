@@ -24,12 +24,12 @@ export function IncomeExpenseBarChart({ data, height = 200 }: BarChartProps) {
           <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
             <div className="flex w-full items-end justify-center gap-0.5" style={{ height: height - 24 }}>
               <div
-                className="w-2 rounded-t bg-emerald-500/80 sm:w-3"
+                className="w-2 rounded-t bg-success/80 sm:w-3"
                 style={{ height: `${(d.income / max) * 100}%`, minHeight: d.income > 0 ? 4 : 0 }}
                 title={`${d.label} income: ${formatMoney(d.income, { currency, locale: intlLocale })}`}
               />
               <div
-                className="w-2 rounded-t bg-rose-500/80 sm:w-3"
+                className="w-2 rounded-t bg-destructive/70 sm:w-3"
                 style={{ height: `${(d.expense / max) * 100}%`, minHeight: d.expense > 0 ? 4 : 0 }}
                 title={`${d.label} expense: ${formatMoney(d.expense, { currency, locale: intlLocale })}`}
               />
@@ -40,10 +40,10 @@ export function IncomeExpenseBarChart({ data, height = 200 }: BarChartProps) {
       </div>
       <div className="flex gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-emerald-500/80" /> Income
+          <span className="size-2 rounded-sm bg-success/80" /> Income
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-rose-500/80" /> Expense
+          <span className="size-2 rounded-sm bg-destructive/70" /> Expense
         </span>
       </div>
     </div>
@@ -56,11 +56,11 @@ type CategoryChartProps = {
 
 const COLORS = [
   "bg-primary",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-violet-500",
-  "bg-cyan-500",
+  "bg-success",
+  "bg-warning",
+  "bg-destructive",
+  "bg-secondary",
+  "bg-foreground/45",
 ];
 
 export function CategoryBreakdownChart({ data }: CategoryChartProps) {

@@ -14,7 +14,8 @@ type Options = {
 };
 
 const NATIVE_INTERVAL_MS = 250;
-const COOLDOWN_MS = 1200;
+/** Same code counts again only after it has left the frame this long. */
+const RESCAN_GAP_MS = 700;
 
 function supportsBarcodeDetector(): boolean {
   return typeof window !== "undefined" && typeof window.BarcodeDetector === "function";
@@ -27,6 +28,8 @@ export function useCameraBarcodeScan({ active, continuous = false, onScan }: Opt
   const [errorKey, setErrorKey] = React.useState<string | null>(null);
   const onScanRef = React.useRef(onScan);
   const lastCodeRef = React.useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  const armedRef = React.useRef(true);
+  const gapTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const continuousRef = React.useRef(continuous);
   const stopControlsRef = React.useRef<(() => void) | null>(null);
 
@@ -38,6 +41,13 @@ export function useCameraBarcodeScan({ active, continuous = false, onScan }: Opt
     continuousRef.current = continuous;
   }, [continuous]);
 
+  const resetGate = React.useCallback(() => {
+    if (gapTimerRef.current) clearTimeout(gapTimerRef.current);
+    gapTimerRef.current = null;
+    armedRef.current = true;
+    lastCodeRef.current = { code: "", at: 0 };
+  }, []);
+
   const stop = React.useCallback(() => {
     stopControlsRef.current?.();
     stopControlsRef.current = null;
@@ -46,19 +56,25 @@ export function useCameraBarcodeScan({ active, continuous = false, onScan }: Opt
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    resetGate();
     setStatus((s) => (s === "error" ? s : "idle"));
-  }, []);
+  }, [resetGate]);
 
   const emitScan = React.useCallback((raw: string): boolean => {
     const normalized = normalizeProductCode(raw);
     if (!normalized) return false;
+
+    if (gapTimerRef.current) clearTimeout(gapTimerRef.current);
+    gapTimerRef.current = setTimeout(() => {
+      armedRef.current = true;
+    }, RESCAN_GAP_MS);
+
     const now = Date.now();
-    if (
-      lastCodeRef.current.code === normalized &&
-      now - lastCodeRef.current.at < COOLDOWN_MS
-    ) {
-      return false;
-    }
+    const same = lastCodeRef.current.code === normalized;
+    if (same && !armedRef.current) return false;
+    if (same && now - lastCodeRef.current.at < 280) return false;
+
+    armedRef.current = false;
     lastCodeRef.current = { code: normalized, at: now };
     onScanRef.current(normalized);
     return true;

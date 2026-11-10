@@ -119,6 +119,31 @@ export function BarcodeScannerSheet({
           </div>
         </SheetHeader>
 
+        {feedback ? (
+          <div
+            className={cn(
+              "shrink-0 px-4 py-3",
+              flashTone === "error"
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-success text-success-foreground"
+            )}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-3">
+              {flashTone === "success" ? (
+                <Check className="mt-0.5 size-5 shrink-0" aria-hidden />
+              ) : null}
+              <div className="min-w-0">
+                <p className="text-base font-medium leading-snug">{feedback.title}</p>
+                {feedback.subtitle ? (
+                  <p className="mt-0.5 text-sm opacity-90">{feedback.subtitle}</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <div className="relative flex min-h-0 flex-1 flex-col bg-black">
           <video
             ref={videoRef}
@@ -145,7 +170,7 @@ export function BarcodeScannerSheet({
                 feedback
                   ? flashTone === "error"
                     ? "border-destructive shadow-[0_0_0_9999px_rgba(0,0,0,0.2)]"
-                    : "border-emerald-400 shadow-[0_0_0_9999px_rgba(0,0,0,0.2)]"
+                    : "border-success shadow-[0_0_0_9999px_rgba(0,0,0,0.2)]"
                   : cn(
                       "border-white/85",
                       isDock
@@ -156,33 +181,6 @@ export function BarcodeScannerSheet({
               aria-hidden
             />
           </div>
-
-          {feedback ? (
-            <div
-              className={cn(
-                "absolute inset-x-3 top-3 z-20 rounded-xl px-4 py-3 shadow-lg",
-                flashTone === "error"
-                  ? "bg-destructive text-destructive-foreground"
-                  : "bg-emerald-600 text-white"
-              )}
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-start gap-3">
-                {flashTone === "success" ? (
-                  <Check className="mt-0.5 size-6 shrink-0" aria-hidden />
-                ) : null}
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold leading-tight">
-                    {feedback.title}
-                  </p>
-                  {feedback.subtitle ? (
-                    <p className="mt-0.5 text-sm opacity-95">{feedback.subtitle}</p>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           <div
             className={cn(

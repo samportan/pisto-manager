@@ -71,6 +71,7 @@ export function ContactsView() {
       {
         id: "balance",
         header: t("business.balanceDue"),
+        meta: { numeric: true },
         cell: ({ row }) => {
           const c = row.original;
           if (!isCustomerContact(c)) return t("common.empty");
@@ -79,7 +80,7 @@ export function ContactsView() {
           return (
             <button
               type="button"
-              className="tabular-nums font-medium text-amber-600 hover:underline dark:text-amber-400"
+              className="tabular-nums font-medium text-warning hover:underline"
               onClick={() => setDebtContact(c)}
             >
               {fmt(bal.balance_due)}

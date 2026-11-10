@@ -10,6 +10,7 @@ import {
   useReactTable,
   type ColumnDef,
   type PaginationState,
+  type RowData,
   type SortingState,
 } from "@tanstack/react-table";
 
@@ -34,7 +35,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/hooks/useTranslations";
 import { cn } from "@/lib/utils";
 
+declare module "@tanstack/react-table" {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    numeric?: boolean;
+  }
+}
+
 const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+
+function columnAlign(meta: unknown) {
+  if (!meta || typeof meta !== "object" || !("numeric" in meta)) return undefined;
+  return (meta as { numeric?: boolean }).numeric ? "text-right" : undefined;
+}
 
 type DataTableProps<T> = {
   data: T[];
@@ -165,13 +177,15 @@ export function DataTable<T>({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <Table>
+      <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="hover:bg-transparent">
                 {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
+                  <TableHead
+                    key={header.id}
+                    className={cn("whitespace-nowrap", columnAlign(header.column.columnDef.meta))}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -201,7 +215,10 @@ export function DataTable<T>({
               rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="align-top">
+                    <TableCell
+                      key={cell.id}
+                      className={columnAlign(cell.column.columnDef.meta)}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
@@ -210,7 +227,6 @@ export function DataTable<T>({
             )}
           </TableBody>
         </Table>
-      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">

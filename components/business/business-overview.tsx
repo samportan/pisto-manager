@@ -17,6 +17,7 @@ import {
   BusinessRevenuePurchasesChart,
   HorizontalBarChart,
 } from "@/components/business/business-overview-charts";
+import { PageHeader } from "@/components/business/page-header";
 import { StatCard, StatCardSkeleton } from "@/components/business/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { useBusinessOverview } from "@/hooks/useBusinessAnalytics";
@@ -78,7 +79,7 @@ function PnlRow({
             <div
               className={cn(
                 "h-full rounded-full",
-                tone === "minus" ? "bg-amber-500/80" : "bg-emerald-500/80"
+                tone === "minus" ? "bg-warning" : "bg-success"
               )}
               style={{ width: `${width}%` }}
             />
@@ -154,12 +155,11 @@ export function BusinessOverview() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("business.overviewTitle")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("business.overviewSubtitle")}</p>
-        </div>
-      </div>
+      <PageHeader
+        title={t("business.overviewTitle")}
+        description={t("business.overviewSubtitle")}
+        className="mb-0"
+      />
 
       <PeriodFilter
         value={period}
@@ -168,17 +168,15 @@ export function BusinessOverview() {
         className="mt-6"
       />
 
-      <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("business.pnlNetProfit")}
-        </p>
+      <section className="mt-8 border-b border-border pb-6">
+        <p className="text-sm text-muted-foreground">{t("business.pnlNetProfit")}</p>
         {isLoading || !pnl ? (
           <div className="mt-2 h-12 w-48 animate-pulse rounded-lg bg-muted/50" />
         ) : (
           <div className="mt-2 flex flex-wrap items-baseline gap-3">
             <p
               className={cn(
-                "text-4xl font-bold tabular-nums tracking-tight sm:text-5xl",
+                "font-display text-5xl tabular-nums tracking-[-0.03em] sm:text-6xl",
                 pnl.netProfit < 0 ? "text-destructive" : "text-primary"
               )}
             >
@@ -190,7 +188,7 @@ export function BusinessOverview() {
                   className={cn(
                     "font-medium tabular-nums",
                     netDelta > 0
-                      ? "text-emerald-600 dark:text-emerald-400"
+                      ? "text-success"
                       : netDelta < 0
                         ? "text-destructive"
                         : ""
@@ -204,7 +202,6 @@ export function BusinessOverview() {
           </div>
         )}
         <p className="mt-2 text-sm text-muted-foreground">{t("business.overviewHeroHint")}</p>
-        <div className="mt-4 h-1 w-16 rounded-full bg-accent" />
       </section>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -254,8 +251,8 @@ export function BusinessOverview() {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold">{t("business.pnlTitle")}</h2>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-base font-medium tracking-tight">{t("business.pnlTitle")}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("business.pnlSubtitle")}</p>
           {isLoading || !pnl ? (
             <div className="mt-4 h-56 animate-pulse rounded-lg bg-muted/50" />
@@ -322,38 +319,25 @@ export function BusinessOverview() {
           )}
         </section>
 
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold">{t("business.cashPositionTitle")}</h2>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-base font-medium tracking-tight">{t("business.cashPositionTitle")}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {t("business.cashPositionSubtitle")}
           </p>
           {isLoading || !cash ? (
             <div className="mt-4 h-56 animate-pulse rounded-lg bg-muted/50" />
           ) : (
-            <div className="mt-4 space-y-3">
-              <div className="rounded-lg bg-muted/40 px-3 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t("business.cashAvailableBalance")}
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-3xl font-bold tabular-nums",
-                    cash.availableBalance < 0 && "text-destructive"
-                  )}
-                >
-                  {fmt(cash.availableBalance)}
-                </p>
-              </div>
+            <div className="mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-lg border border-border px-3 py-2">
                   <p className="text-xs text-muted-foreground">{t("business.cashInTotal")}</p>
-                  <p className="mt-0.5 font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  <p className="mt-0.5 font-semibold tabular-nums text-success">
                     {fmt(cashIn)}
                   </p>
                 </div>
                 <div className="rounded-lg border border-border px-3 py-2">
                   <p className="text-xs text-muted-foreground">{t("business.cashOutTotal")}</p>
-                  <p className="mt-0.5 font-semibold tabular-nums text-amber-600">
+                  <p className="mt-0.5 font-semibold tabular-nums text-warning">
                     {fmt(cashOut)}
                   </p>
                 </div>
@@ -400,7 +384,7 @@ export function BusinessOverview() {
         <section className="mt-6 rounded-xl border border-destructive/30 bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold text-destructive">
+              <h2 className="text-base font-medium tracking-tight text-destructive">
                 {t("business.lowStockAlertTitle")}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -443,8 +427,8 @@ export function BusinessOverview() {
       ) : null}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold">{t("business.revenueVsPurchases")}</h2>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-base font-medium tracking-tight">{t("business.revenueVsPurchases")}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("business.chartClickMonth")}</p>
           <div className="mt-4">
             {isLoading ? (
@@ -462,8 +446,8 @@ export function BusinessOverview() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold">{t("business.topProductsPeriod")}</h2>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-base font-medium tracking-tight">{t("business.topProductsPeriod")}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground capitalize">
             {period === "all_time"
               ? t("business.periodAllTime")
@@ -489,7 +473,7 @@ export function BusinessOverview() {
       </div>
 
       <div className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold">{t("business.quickActions")}</h2>
+        <h2 className="mb-3 text-base font-medium tracking-tight">{t("business.quickActions")}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Quick
             href="/dashboard/business/sales/new"
@@ -529,9 +513,9 @@ function Quick({
   return (
     <Link
       href={href}
-      className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/30"
+      className="group flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card p-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-0.5"
     >
-      <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+      <span className="flex size-10 items-center justify-center rounded-lg bg-primary/8 text-primary">
         <Icon className="size-5" aria-hidden />
       </span>
       {label}

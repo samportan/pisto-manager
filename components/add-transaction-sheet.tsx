@@ -80,7 +80,7 @@ export function AddTransactionSheet({
               : "Create income and expense categories for your transactions."}
           </SheetDescription>
         </SheetHeader>
-        <div className="overflow-y-auto overscroll-contain px-4 py-6 max-h-[calc(100dvh-8rem)]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6">
           {accountsLoading || categoriesLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : mode === "categories" ? (

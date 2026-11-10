@@ -93,6 +93,7 @@ export function ExpensesView() {
       {
         accessorKey: "amount",
         header: t("business.amount"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <span className="font-medium tabular-nums">{fmt(row.original.amount)}</span>
         ),

@@ -32,8 +32,8 @@ function PaginationLink({ className, isActive, size = "icon-sm", ...props }: Pag
     <Button
       type="button"
       aria-current={isActive ? "page" : undefined}
-      variant={isActive ? "secondary" : "outline"}
-      size={size}
+      variant={isActive ? "default" : "ghost"}
+      size="icon"
       className={cn("min-w-8", className)}
       {...props}
     />
@@ -42,7 +42,7 @@ function PaginationLink({ className, isActive, size = "icon-sm", ...props }: Pag
 
 function PaginationPrevious({ className, ...props }: React.ComponentProps<typeof Button>) {
   return (
-    <Button type="button" variant="outline" size="sm" className={cn("gap-1", className)} {...props}>
+    <Button type="button" variant="ghost" size="icon" className={cn(className)} {...props}>
       <ChevronLeft className="size-4" />
     </Button>
   );
@@ -50,7 +50,7 @@ function PaginationPrevious({ className, ...props }: React.ComponentProps<typeof
 
 function PaginationNext({ className, ...props }: React.ComponentProps<typeof Button>) {
   return (
-    <Button type="button" variant="outline" size="sm" className={cn("gap-1", className)} {...props}>
+    <Button type="button" variant="ghost" size="icon" className={cn(className)} {...props}>
       <ChevronRight className="size-4" />
     </Button>
   );

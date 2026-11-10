@@ -90,7 +90,7 @@ export function EditTransactionSheet({
               : "Create income and expense categories for your transactions."}
           </SheetDescription>
         </SheetHeader>
-        <div className="max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain px-4 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6">
           {accountsLoading || categoriesLoading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : mode === "categories" ? (

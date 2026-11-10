@@ -24,6 +24,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useT } from "@/hooks/useTranslations";
 import { cn } from "@/lib/utils";
 
+function columnAlign(meta: unknown) {
+  if (!meta || typeof meta !== "object" || !("numeric" in meta)) return undefined;
+  return (meta as { numeric?: boolean }).numeric ? "text-right" : undefined;
+}
+
 type ResponsiveListProps<T> = {
   data: T[];
   columns: ColumnDef<T, unknown>[];
@@ -93,7 +98,10 @@ export function ResponsiveList<T>({
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="hover:bg-transparent">
                 {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
+                  <TableHead
+                    key={header.id}
+                    className={cn("whitespace-nowrap", columnAlign(header.column.columnDef.meta))}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -116,7 +124,7 @@ export function ResponsiveList<T>({
               rows.map((row) => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell key={cell.id} className={columnAlign(cell.column.columnDef.meta)}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

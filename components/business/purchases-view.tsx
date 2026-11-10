@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus, Trash2, Truck } from "lucide-react";
 
 import { DataTable } from "@/components/business/data-table";
+import { DocumentLineRead } from "@/components/business/document-lines";
 import { EditPurchaseSheet } from "@/components/business/edit-purchase-sheet";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { ListFilterBar, type FilterChip } from "@/components/business/list-filter-bar";
@@ -299,54 +300,25 @@ function PurchaseDetailBody({
       ) : !lines?.length ? (
         <p className="text-sm text-muted-foreground">{t("business.noLines")}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{t("business.product")}</TableHead>
-                {showQtyMismatch ? (
-                  <>
-                    <TableHead className="min-w-[4rem] text-right">{t("business.qtyOrdered")}</TableHead>
-                    <TableHead className="min-w-[4rem] text-right">{t("business.qtyReceived")}</TableHead>
-                  </>
-                ) : (
-                  <TableHead className="min-w-[5rem] text-right">{t("business.qty")}</TableHead>
-                )}
-                <TableHead className="min-w-[7rem] text-right">{t("business.unitCost")}</TableHead>
-                <TableHead className="min-w-[7rem] text-right">{t("business.line")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lines.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.products?.name ?? row.product_id}</TableCell>
-                  {showQtyMismatch ? (
-                    <>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {row.quantity_ordered}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.quantity_received ?? "—"}
-                      </TableCell>
-                    </>
-                  ) : (
-                    <TableCell className="text-right text-base tabular-nums">
-                      {purchase.receipt_status === "pending"
-                        ? row.quantity_ordered
-                        : (row.quantity_received ?? row.quantity_ordered)}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right tabular-nums">
-                    {fmt(Number(row.unit_cost))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {fmt(Number(row.line_total))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <ul className="divide-y divide-border">
+          {lines.map((row) => {
+            const qty =
+              purchase.receipt_status === "pending"
+                ? row.quantity_ordered
+                : (row.quantity_received ?? row.quantity_ordered);
+            const detail = showQtyMismatch
+              ? `${t("business.qtyOrdered")} ${row.quantity_ordered} · ${t("business.qtyReceived")} ${row.quantity_received ?? "—"} · ${fmt(Number(row.unit_cost))}`
+              : `${qty} × ${fmt(Number(row.unit_cost))}`;
+            return (
+              <DocumentLineRead
+                key={row.id}
+                name={row.products?.name ?? row.product_id}
+                detail={detail}
+                total={fmt(Number(row.line_total))}
+              />
+            );
+          })}
+        </ul>
       )}
     </div>
   );
@@ -540,6 +512,7 @@ export function PurchasesView() {
       {
         accessorKey: "line_count",
         header: t("business.lines"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <span className="tabular-nums text-muted-foreground">{row.original.line_count}</span>
         ),
@@ -547,6 +520,7 @@ export function PurchasesView() {
       {
         accessorKey: "total",
         header: t("business.total"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <span className="font-semibold tabular-nums">{fmt(Number(row.original.total))}</span>
         ),

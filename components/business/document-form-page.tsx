@@ -64,7 +64,7 @@ export function DocumentFormPage({
         </Link>
 
         <header className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+          <h1 className="text-3xl leading-none sm:text-4xl">{title}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
         </header>
 
@@ -98,15 +98,11 @@ export function DocumentFormPage({
               <CardContent className="space-y-4">{linesContent}</CardContent>
             </Card>
 
-            <div className="space-y-3 rounded-xl border border-border bg-card px-4 py-4 md:hidden">
-              {summaryExtra ? (
-                <div className="space-y-2 border-b border-border pb-3">{summaryExtra}</div>
-              ) : null}
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-muted-foreground">{totalLabel}</span>
-                <span className="text-xl font-bold tabular-nums">{totalFormatted}</span>
+            {summaryExtra ? (
+              <div className="rounded-xl border border-border bg-card px-4 py-4 md:hidden">
+                {summaryExtra}
               </div>
-            </div>
+            ) : null}
           </div>
 
           <aside className="hidden md:block">
@@ -148,7 +144,7 @@ export function DocumentFormPage({
 
       <div
         className={cn(
-          "fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-[55] border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
+          "fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[55] border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
         )}
       >
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:gap-3">

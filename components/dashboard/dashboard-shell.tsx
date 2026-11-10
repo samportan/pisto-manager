@@ -27,7 +27,7 @@ export function DashboardShell({
     <SidebarProvider>
       <AppSidebar email={email} />
       <SidebarInset className="flex min-h-dvh flex-col bg-background">
-        <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card/70 px-4 backdrop-blur-sm supports-[backdrop-filter]:bg-card/50 md:px-6 transition-colors">
+        <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-md md:px-6">
           <SidebarTrigger className="inline-flex shrink-0" />
           <Link
             href="/dashboard/business"
@@ -37,7 +37,7 @@ export function DashboardShell({
           </Link>
           <div className="ml-auto flex items-center gap-2">
             {activeOrg.kind === "business" ? (
-              <span className="hidden rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground sm:inline">
+              <span className="hidden max-w-[12rem] truncate rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground sm:inline">
                 {activeOrg.name}
               </span>
             ) : null}
@@ -62,7 +62,7 @@ export function DashboardShell({
             </Link>
           </div>
         </header>
-        <div className="relative flex flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div className="relative flex flex-1 flex-col pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </div>
         <BottomNav />

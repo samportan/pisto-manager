@@ -172,9 +172,9 @@ export function EditProductSheet({
           onSubmit={(e) => {
             void handleSubmit(e);
           }}
-          className="flex max-h-[calc(100dvh-6rem)] flex-col"
+          className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="space-y-4 overflow-y-auto overscroll-contain px-4 py-6">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-6">
             <fieldset disabled={isSubmitting} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="ep-name">{t("business.name")}</Label>

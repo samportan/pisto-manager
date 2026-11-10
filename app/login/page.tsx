@@ -26,6 +26,8 @@ export default async function LoginPage({
       title={messages.auth.loginTitle}
       subtitle={messages.auth.loginSubtitle}
       footer={messages.auth.termsNotice}
+      brandLine={messages.auth.brandLine}
+      brandNote={messages.auth.brandNote}
     >
       <LoginForm nextPath={next} />
     </AuthPageShell>

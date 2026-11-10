@@ -6,6 +6,7 @@ import { Check, ScanBarcode } from "lucide-react";
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
 import type { PurchaseCollectionMode } from "@/components/business/add-purchase-form";
 import { BarcodeScannerSheet } from "@/components/business/barcode-scanner-sheet";
+import { DocumentLine, LineField, LineQty } from "@/components/business/document-lines";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,14 +22,6 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
 import { useReceivePurchase } from "@/hooks/usePurchases";
@@ -428,7 +421,7 @@ export function ReceivePurchaseSheet({
                     "flex items-start gap-3 rounded-xl px-4 py-3 shadow-sm",
                     scanFeedback.tone === "error"
                       ? "bg-destructive text-destructive-foreground"
-                      : "bg-emerald-600 text-white"
+                      : "bg-success text-success-foreground"
                   )}
                   role="status"
                   aria-live="polite"
@@ -437,59 +430,56 @@ export function ReceivePurchaseSheet({
                     <Check className="mt-0.5 size-6 shrink-0" aria-hidden />
                   ) : null}
                   <div className="min-w-0">
-                    <p className="truncate text-base font-semibold">{scanFeedback.title}</p>
+                    <p className="text-base font-semibold leading-snug">{scanFeedback.title}</p>
                     {scanFeedback.subtitle ? (
                       <p className="text-sm opacity-95">{scanFeedback.subtitle}</p>
                     ) : null}
                   </div>
                 </div>
               ) : null}
-              <div className="overflow-x-auto rounded-xl border border-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead>{t("business.product")}</TableHead>
-                      <TableHead className="text-right">{t("business.qtyOrdered")}</TableHead>
-                      <TableHead className="text-right">{t("business.qtyReceived")}</TableHead>
-                      <TableHead className="text-right">{t("business.unitCost")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lines.map((row) => {
-                      const pr = row.product_id ? productById.get(row.product_id) : undefined;
-                      const qtyProps = qtyInputProps(row.product_id);
-                      return (
-                        <TableRow
-                          key={row.key}
-                          className={cn(lastScannedKey === row.key && "bg-emerald-500/15")}
-                        >
-                          <TableCell>{pr?.name ?? row.product_id}</TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
-                            {row.quantity_ordered}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Input
-                              {...qtyProps}
-                              className="ml-auto h-10 w-20 text-right tabular-nums"
-                              value={row.quantity_received}
-                              onChange={(e) =>
-                                setLine(row.key, { quantity_received: e.target.value })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <MoneyInput
-                              className="ml-auto h-10 w-28 text-right"
-                              value={row.unit_cost}
-                              onChange={(v) => setLine(row.key, { unit_cost: v })}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <ul className="divide-y divide-border">
+                {lines.map((row) => {
+                  const pr = row.product_id ? productById.get(row.product_id) : undefined;
+                  const qtyProps = qtyInputProps(row.product_id);
+                  return (
+                    <DocumentLine
+                      key={row.key}
+                      highlighted={lastScannedKey === row.key}
+                      product={
+                        <p className="flex h-11 items-center font-medium">
+                          {pr?.name ?? row.product_id}
+                        </p>
+                      }
+                    >
+                      <LineField label={t("business.qtyOrdered")}>
+                        <p className="flex h-11 items-center text-base tabular-nums text-muted-foreground">
+                          {row.quantity_ordered}
+                        </p>
+                      </LineField>
+                      <LineField label={t("business.qtyReceived")}>
+                        <LineQty
+                          value={row.quantity_received}
+                          onChange={(quantity_received) =>
+                            setLine(row.key, { quantity_received })
+                          }
+                          step={qtyProps.step}
+                          min={qtyProps.min}
+                          inputMode={qtyProps.inputMode}
+                          decreaseLabel={`${t("business.qtyReceived")} −`}
+                          increaseLabel={`${t("business.qtyReceived")} +`}
+                        />
+                      </LineField>
+                      <LineField label={t("business.unitCost")}>
+                        <MoneyInput
+                          className="h-11 text-base"
+                          value={row.unit_cost}
+                          onChange={(unit_cost) => setLine(row.key, { unit_cost })}
+                        />
+                      </LineField>
+                    </DocumentLine>
+                  );
+                })}
+              </ul>
             </div>
 
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">

@@ -50,7 +50,7 @@ export function BusinessRevenuePurchasesChart({
                 style={{ height: height - 24 }}
               >
                 <div
-                  className="w-2 rounded-t bg-emerald-500/80 sm:w-3"
+                  className="w-2 rounded-t bg-success/80 sm:w-3"
                   style={{
                     height: `${(d.revenue / max) * 100}%`,
                     minHeight: d.revenue > 0 ? 4 : 0,
@@ -58,7 +58,7 @@ export function BusinessRevenuePurchasesChart({
                   title={`${d.label} ${t("business.revenue")}: ${formatMoneyDisplay(d.revenue, { currency, locale: intlLocale })}`}
                 />
                 <div
-                  className="w-2 rounded-t bg-amber-500/80 sm:w-3"
+                  className="w-2 rounded-t bg-warning/80 sm:w-3"
                   style={{
                     height: `${(d.purchases / max) * 100}%`,
                     minHeight: d.purchases > 0 ? 4 : 0,
@@ -80,10 +80,10 @@ export function BusinessRevenuePurchasesChart({
       </div>
       <div className="flex gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-emerald-500/80" /> {t("business.revenue")}
+          <span className="size-2 rounded-sm bg-success/80" /> {t("business.revenue")}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-amber-500/80" /> {t("business.purchases")}
+          <span className="size-2 rounded-sm bg-warning/80" /> {t("business.purchases")}
         </span>
       </div>
     </div>
@@ -97,11 +97,11 @@ type HorizontalBarChartProps = {
 
 const COLORS = [
   "bg-primary",
-  "bg-emerald-500",
-  "bg-amber-500",
-  "bg-rose-500",
-  "bg-violet-500",
-  "bg-cyan-500",
+  "bg-success",
+  "bg-warning",
+  "bg-destructive",
+  "bg-secondary",
+  "bg-foreground/45",
 ];
 
 export function HorizontalBarChart({ data, emptyLabel }: HorizontalBarChartProps) {

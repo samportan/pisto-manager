@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { ProductInsightsView } from "@/components/business/product-insights-view";
 import { ProductsView } from "@/components/business/products-view";
-import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented";
 import { useT } from "@/hooks/useTranslations";
 
 type ProductsTab = "catalog" | "insights";
@@ -16,24 +16,16 @@ export function ProductsPage() {
   return (
     <div className="flex-1">
       <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6">
-        <div className="mb-6 flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={tab === "catalog" ? "secondary" : "outline"}
-            onClick={() => setTab("catalog")}
-          >
-            {t("business.productsTabCatalog")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={tab === "insights" ? "secondary" : "outline"}
-            onClick={() => setTab("insights")}
-          >
-            {t("business.productsTabInsights")}
-          </Button>
-        </div>
+        <SegmentedControl
+          className="mb-6"
+          label={t("business.productsTitle")}
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "catalog", label: t("business.productsTabCatalog") },
+            { value: "insights", label: t("business.productsTabInsights") },
+          ]}
+        />
       </div>
       {tab === "catalog" ? <ProductsView embedded /> : <ProductInsightsView />}
     </div>

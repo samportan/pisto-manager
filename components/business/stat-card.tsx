@@ -12,7 +12,7 @@ export function DeltaBadge({ value }: { value: number | null }) {
     <span
       className={cn(
         "text-xs font-medium tabular-nums",
-        up ? "text-emerald-600 dark:text-emerald-400" : down ? "text-destructive" : "text-muted-foreground"
+        up ? "text-success" : down ? "text-destructive" : "text-muted-foreground"
       )}
     >
       {up ? "↑" : down ? "↓" : "—"} {Math.abs(value).toFixed(0)}%
@@ -42,17 +42,16 @@ export function StatCard({
   const body = (
     <article
       className={cn(
-        "relative h-full overflow-hidden rounded-xl border bg-card p-4 transition-colors",
-        href && "hover:bg-muted/30",
-        tone === "danger" && "border-destructive/40",
-        tone === "warning" && "border-amber-500/40",
-        tone === "positive" && "border-emerald-500/30"
+        "relative h-full overflow-hidden rounded-xl border border-border bg-card p-4",
+        tone === "danger" && "border-l-2 border-l-destructive",
+        tone === "warning" && "border-l-2 border-l-warning",
+        tone === "positive" && "border-l-2 border-l-success"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <p
           className={cn(
-            "text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+            "text-sm text-muted-foreground",
             tone === "danger" && "text-destructive"
           )}
         >
@@ -65,10 +64,10 @@ export function StatCard({
               tone === "danger"
                 ? "bg-destructive/10 text-destructive"
                 : tone === "positive"
-                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  ? "bg-success/15 text-success"
                   : tone === "warning"
-                    ? "bg-amber-500/15 text-amber-600"
-                    : "bg-primary/10 text-primary"
+                    ? "bg-warning/15 text-warning"
+                    : "bg-primary/8 text-primary"
             )}
           >
             <Icon className="size-4" aria-hidden />
@@ -77,9 +76,9 @@ export function StatCard({
       </div>
       <p
         className={cn(
-          "mt-2 text-2xl font-bold tabular-nums",
+          "mt-3 font-display text-[1.75rem] leading-none tabular-nums",
           tone === "danger" && "text-destructive",
-          tone === "positive" && "text-emerald-600 dark:text-emerald-400"
+          tone === "positive" && "text-success"
         )}
       >
         {value}
@@ -104,7 +103,7 @@ export function StatCard({
     return (
       <Link
         href={href}
-        className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="block rounded-xl transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {body}
       </Link>

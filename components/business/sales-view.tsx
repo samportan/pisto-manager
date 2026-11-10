@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Plus, Trash2 } from "lucide-react";
 
 import { DataTable } from "@/components/business/data-table";
+import { DocumentLineRead } from "@/components/business/document-lines";
 import { ExportExcelButton } from "@/components/business/export-excel-button";
 import { ListFilterBar, type FilterChip } from "@/components/business/list-filter-bar";
 import { PageHeader } from "@/components/business/page-header";
@@ -225,32 +226,16 @@ function SaleDetailBody({
       ) : !lines?.length ? (
         <p className="text-sm text-muted-foreground">{t("business.noLines")}</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>{t("business.product")}</TableHead>
-                <TableHead className="min-w-[5rem] text-right">{t("business.qty")}</TableHead>
-                <TableHead className="min-w-[7rem] text-right">{t("business.unit")}</TableHead>
-                <TableHead className="min-w-[7rem] text-right">{t("business.line")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lines.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.products?.name ?? row.product_id}</TableCell>
-                  <TableCell className="text-right text-base tabular-nums">{row.quantity}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {fmt(Number(row.unit_price))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {fmt(Number(row.line_total))}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <ul className="divide-y divide-border">
+          {lines.map((row) => (
+            <DocumentLineRead
+              key={row.id}
+              name={row.products?.name ?? row.product_id}
+              detail={`${row.quantity} × ${fmt(Number(row.unit_price))}`}
+              total={fmt(Number(row.line_total))}
+            />
+          ))}
+        </ul>
       )}
     </div>
   );
@@ -416,6 +401,7 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
       {
         accessorKey: "line_count",
         header: t("business.lines"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <span className="tabular-nums text-muted-foreground">{row.original.line_count}</span>
         ),
@@ -423,11 +409,12 @@ export function SalesView({ embedded = false, customerFilter }: Props) {
       {
         accessorKey: "total",
         header: t("business.total"),
+        meta: { numeric: true },
         cell: ({ row }) => (
           <div className="space-y-0.5">
             <span className="font-semibold tabular-nums">{fmt(Number(row.original.total))}</span>
             {Number(row.original.balance_due) > 0 ? (
-              <p className="text-xs tabular-nums text-amber-600 dark:text-amber-400">
+              <p className="text-xs tabular-nums text-warning">
                 {t("business.balanceDueShort")}: {fmt(Number(row.original.balance_due))}
               </p>
             ) : null}

@@ -1,11 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { Check, Plus, ScanBarcode, Trash2 } from "lucide-react";
-
-import { BarcodeScannerSheet } from "@/components/business/barcode-scanner-sheet";
+import {
+  BarcodeScanPanel,
+  ScanLog,
+  type ScanLogItem,
+} from "@/components/business/barcode-scan-panel";
 import { ContactPicker } from "@/components/business/contact-picker";
 import { DocumentFormPage } from "@/components/business/document-form-page";
+import {
+  DocumentLine,
+  DocumentLineList,
+  LineField,
+  LineQty,
+} from "@/components/business/document-lines";
 import { ProductPicker } from "@/components/business/product-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,16 +21,8 @@ import { Label } from "@/components/ui/label";
 import { MoneyInput, moneyInputToNumber } from "@/components/ui/money-input";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useHardwareBarcodeScan } from "@/hooks/useHardwareBarcodeScan";
-import { useScanFeedback } from "@/hooks/useScanFeedback";
+import { playScanErrorSound, playScanSuccessSound } from "@/lib/barcode/scan-feedback";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import type { CollectionMode } from "@/hooks/useSales";
@@ -40,8 +40,6 @@ import {
 } from "@/lib/money";
 import { findProductByCode } from "@/lib/product-search";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
-import { cn } from "@/lib/utils";
-
 export function toDatetimeLocalValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -68,8 +66,8 @@ type Props = {
 export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitting }: Props) {
   const { t, intlLocale, currency } = useT();
   const toast = useAppToast();
-  const { feedback: scanFeedback, showSuccess, showError } = useScanFeedback();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
+  const [scanLog, setScanLog] = React.useState<ScanLogItem[]>([]);
 
   const [customerId, setCustomerId] = React.useState("");
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>("cash");
@@ -110,27 +108,40 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         priceField: "sale_price",
       });
       if (!result.ok) {
+        playScanErrorSound();
         const title = t(
           result.reason === "inactive"
             ? "business.scanProductInactive"
             : "business.scanProductNotFound"
         );
-        showError({ title });
+        setScanLog((prev) =>
+          [{ id: crypto.randomUUID(), tone: "error" as const, title }, ...prev].slice(0, 4)
+        );
         return;
       }
       const matched = result.lines.find((row) => row.product_id === result.product.id);
       setLines(result.lines as Line[]);
       if (matched) setLastScannedKey(matched.key);
       const qty = matched?.quantity ?? "1";
-      showSuccess({
-        title: result.product.name,
-        subtitle:
-          result.action === "added"
-            ? t("business.scanAddedSubtitle", { qty })
-            : t("business.scanIncrementedSubtitle", { qty }),
-      });
+      const unit = moneyInputToNumber(matched?.unit_price ?? "");
+      playScanSuccessSound();
+      setScanLog((prev) =>
+        [
+          {
+            id: crypto.randomUUID(),
+            tone: "success" as const,
+            title: result.product.name,
+            detail:
+              result.action === "added"
+                ? t("business.scanAddedSubtitle", { qty })
+                : t("business.scanIncrementedSubtitle", { qty }),
+            amount: fmt(multiplyMoney(Number(qty) || 0, unit)),
+          },
+          ...prev,
+        ].slice(0, 4)
+      );
     },
-    [pickerProducts, showError, showSuccess, t]
+    [fmt, pickerProducts, t]
   );
 
   useHardwareBarcodeScan({
@@ -397,136 +408,77 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
 
   const linesContent = (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">{t("business.scanReady")}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            disabled={isSubmitting}
-            onClick={() => setScannerOpen(true)}
-          >
-            <ScanBarcode className="size-4" />
-            {t("business.scanBarcode")}
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addLine}>
-            <Plus className="size-4" />
-            {t("business.addLine")}
-          </Button>
-        </div>
-      </div>
-
-      {scanFeedback ? (
-        <div
-          className={cn(
-            "flex items-start gap-3 rounded-xl px-4 py-3 shadow-sm",
-            scanFeedback.tone === "error"
-              ? "bg-destructive text-destructive-foreground"
-              : "bg-emerald-600 text-white"
-          )}
-          role="status"
-          aria-live="polite"
-        >
-          {scanFeedback.tone !== "error" ? (
-            <Check className="mt-0.5 size-6 shrink-0" aria-hidden />
-          ) : null}
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold">{scanFeedback.title}</p>
-            {scanFeedback.subtitle ? (
-              <p className="text-sm opacity-95">{scanFeedback.subtitle}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="min-w-[14rem]">{t("business.product")}</TableHead>
-              <TableHead className="min-w-[6rem] text-right">{t("business.qty")}</TableHead>
-              <TableHead className="min-w-[8rem] text-right">{t("business.unitPrice")}</TableHead>
-              <TableHead className="min-w-[8rem] text-right">{t("business.lineTotal")}</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lines.map((row) => {
-              const lineTotal = lineTotals.get(row.key) ?? 0;
-              const pr = row.product_id ? productById.get(row.product_id) : undefined;
-              const qtyProps = qtyInputProps(row.product_id);
-              return (
-                <TableRow
-                  key={row.key}
-                  className={cn(lastScannedKey === row.key && "bg-emerald-500/15")}
-                >
-                  <TableCell>
-                    <ProductPicker
-                      products={pickerProducts}
-                      value={row.product_id}
-                      onValueChange={(productId) => setLine(row.key, { product_id: productId })}
-                      showStock
-                      className="h-10 w-full min-w-[12rem]"
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex flex-col items-end gap-0.5">
-                      <Input
-                        {...qtyProps}
-                        className="ml-auto h-10 w-24 text-right text-base tabular-nums"
-                        value={row.quantity}
-                        onChange={(e) => setLine(row.key, { quantity: e.target.value })}
-                      />
-                      {pr ? (
-                        <span className="text-[0.65rem] text-muted-foreground">
-                          {t(`business.uom.${pr.unit_of_measure}`)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <MoneyInput
-                      className="ml-auto h-10 w-32 text-right text-base"
-                      value={row.unit_price}
-                      onChange={(v) => setLine(row.key, { unit_price: v })}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right text-base font-semibold tabular-nums">
-                    {fmt(lineTotal)}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t("business.removeLine")}
-                      disabled={lines.length <= 1}
-                      onClick={() => removeLine(row.key)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      <BarcodeScannerSheet
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onScan={handleBarcodeScan}
-        continuous
-        layout="dock"
-        feedback={scanFeedback}
-      />
+      <DocumentLineList
+        hint={scannerOpen ? undefined : t("business.scanReady")}
+        addLabel={t("business.addLine")}
+        onAdd={addLine}
+        scanLabel={t("business.scanBarcode")}
+        onScan={scannerOpen ? undefined : () => setScannerOpen(true)}
+        scanDisabled={isSubmitting}
+        notice={
+          <>
+            <BarcodeScanPanel
+              active={scannerOpen}
+              onScan={handleBarcodeScan}
+              onClose={() => setScannerOpen(false)}
+            />
+            <ScanLog
+              label={t("business.lastScan")}
+              items={scannerOpen ? scanLog : scanLog.slice(0, 1)}
+            />
+          </>
+        }
+      >
+        {lines.map((row) => {
+          const lineTotal = lineTotals.get(row.key) ?? 0;
+          const pr = row.product_id ? productById.get(row.product_id) : undefined;
+          const qtyProps = qtyInputProps(row.product_id);
+          return (
+            <DocumentLine
+              key={row.key}
+              highlighted={lastScannedKey === row.key}
+              removeLabel={t("business.removeLine")}
+              removeDisabled={lines.length <= 1}
+              onRemove={() => removeLine(row.key)}
+              total={fmt(lineTotal)}
+              product={
+                <ProductPicker
+                  products={pickerProducts}
+                  value={row.product_id}
+                  onValueChange={(productId) => setLine(row.key, { product_id: productId })}
+                  showStock
+                  className="h-11 w-full"
+                />
+              }
+            >
+              <LineField label={t("business.qty")}>
+                <LineQty
+                  value={row.quantity}
+                  onChange={(quantity) => setLine(row.key, { quantity })}
+                  step={qtyProps.step}
+                  min={qtyProps.min}
+                  inputMode={qtyProps.inputMode}
+                  suffix={pr ? t(`business.uom.${pr.unit_of_measure}`) : undefined}
+                  decreaseLabel={`${t("business.qty")} −`}
+                  increaseLabel={`${t("business.qty")} +`}
+                />
+              </LineField>
+              <LineField label={t("business.unitPrice")}>
+                <MoneyInput
+                  className="h-11 text-base"
+                  value={row.unit_price}
+                  onChange={(unit_price) => setLine(row.key, { unit_price })}
+                />
+              </LineField>
+            </DocumentLine>
+          );
+        })}
+      </DocumentLineList>
     </>
   );
 
-  const summaryExtra = (
+  const hasBreakdown = paymentMethod === "card" || collectionMode !== "full";
+  const summaryExtra = hasBreakdown ? (
     <div className="space-y-2 text-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="text-muted-foreground">{t("business.subtotal")}</span>
@@ -551,14 +503,14 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
           </div>
           <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
             <span className="font-medium">{t("business.balanceDue")}</span>
-            <span className="tabular-nums font-semibold text-amber-600 dark:text-amber-400">
+            <span className="tabular-nums font-semibold text-warning">
               {fmt(balanceDuePreview)}
             </span>
           </div>
         </>
       ) : null}
     </div>
-  );
+  ) : null;
 
   return (
     <DocumentFormPage

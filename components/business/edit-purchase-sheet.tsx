@@ -1,10 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Trash2 } from "lucide-react";
-
 import { toDatetimeLocalValue } from "@/components/business/add-sale-form";
 import { ContactPicker } from "@/components/business/contact-picker";
+import {
+  DocumentLine,
+  DocumentLineList,
+  LineField,
+  LineQty,
+} from "@/components/business/document-lines";
 import { ProductPicker } from "@/components/business/product-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,14 +25,6 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useContacts } from "@/hooks/useContacts";
 import { useProducts } from "@/hooks/useProducts";
 import { usePurchaseItems } from "@/hooks/usePurchaseItems";
@@ -353,95 +349,73 @@ export function EditPurchaseSheet({
               />
             </div>
 
-            <div className="flex justify-end">
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addLine}>
-                <Plus className="size-4" />
-                {t("business.addLine")}
-              </Button>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>{t("business.product")}</TableHead>
+            <DocumentLineList addLabel={t("business.addLine")} onAdd={addLine}>
+              {lines.map((row) => {
+                const qtyProps = qtyInputProps(row.product_id);
+                const pr = row.product_id ? productById.get(row.product_id) : undefined;
+                const unit = pr ? t(`business.uom.${pr.unit_of_measure}`) : undefined;
+                return (
+                  <DocumentLine
+                    key={row.key}
+                    removeLabel={t("business.removeLine")}
+                    removeDisabled={lines.length <= 1}
+                    onRemove={() => removeLine(row.key)}
+                    product={
+                      <ProductPicker
+                        products={pickerProducts}
+                        value={row.product_id}
+                        onValueChange={(id) => setLine(row.key, { product_id: id })}
+                        className="h-11 w-full"
+                      />
+                    }
+                  >
                     {isPending ? (
-                      <TableHead className="text-right">{t("business.qtyOrdered")}</TableHead>
+                      <LineField label={t("business.qtyOrdered")}>
+                        <LineQty
+                          value={row.quantity_ordered}
+                          onChange={(quantity_ordered) => setLine(row.key, { quantity_ordered })}
+                          step={qtyProps.step}
+                          min={qtyProps.min}
+                          inputMode={qtyProps.inputMode}
+                          suffix={unit}
+                          decreaseLabel={`${t("business.qtyOrdered")} −`}
+                          increaseLabel={`${t("business.qtyOrdered")} +`}
+                        />
+                      </LineField>
                     ) : (
                       <>
-                        <TableHead className="text-right">{t("business.qtyOrdered")}</TableHead>
-                        <TableHead className="text-right">{t("business.qtyReceived")}</TableHead>
+                        <LineField label={t("business.qtyOrdered")}>
+                          <p className="flex h-11 items-center text-base tabular-nums text-muted-foreground">
+                            {row.quantity_ordered}
+                            {unit ? <span className="ml-2 text-sm">{unit}</span> : null}
+                          </p>
+                        </LineField>
+                        <LineField label={t("business.qtyReceived")}>
+                          <LineQty
+                            value={row.quantity_received}
+                            onChange={(quantity_received) =>
+                              setLine(row.key, { quantity_received })
+                            }
+                            step={qtyProps.step}
+                            min={qtyProps.min}
+                            inputMode={qtyProps.inputMode}
+                            decreaseLabel={`${t("business.qtyReceived")} −`}
+                            increaseLabel={`${t("business.qtyReceived")} +`}
+                          />
+                        </LineField>
                       </>
                     )}
-                    <TableHead className="text-right">{t("business.unitCost")}</TableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((row) => {
-                    const qtyProps = qtyInputProps(row.product_id);
-                    return (
-                      <TableRow key={row.key}>
-                        <TableCell>
-                          <ProductPicker
-                            products={pickerProducts}
-                            value={row.product_id}
-                            onValueChange={(id) => setLine(row.key, { product_id: id })}
-                            className="h-10 w-full min-w-[10rem]"
-                          />
-                        </TableCell>
-                        {isPending ? (
-                          <TableCell className="text-right">
-                            <Input
-                              {...qtyProps}
-                              className="ml-auto h-10 w-20 text-right tabular-nums"
-                              value={row.quantity_ordered}
-                              onChange={(e) =>
-                                setLine(row.key, { quantity_ordered: e.target.value })
-                              }
-                            />
-                          </TableCell>
-                        ) : (
-                          <>
-                            <TableCell className="text-right tabular-nums text-muted-foreground">
-                              {row.quantity_ordered}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Input
-                                {...qtyProps}
-                                className="ml-auto h-10 w-20 text-right tabular-nums"
-                                value={row.quantity_received}
-                                onChange={(e) =>
-                                  setLine(row.key, { quantity_received: e.target.value })
-                                }
-                              />
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell className="text-right">
-                          <MoneyInput
-                            className="ml-auto h-10 w-28 text-right"
-                            value={row.unit_cost}
-                            onChange={(v) => setLine(row.key, { unit_cost: v })}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={lines.length <= 1}
-                            onClick={() => removeLine(row.key)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+                    <LineField label={t("business.unitCost")}>
+                      <MoneyInput
+                        className="h-11 text-base"
+                        value={row.unit_cost}
+                        onChange={(unit_cost) => setLine(row.key, { unit_cost })}
+                      />
+                    </LineField>
+                  </DocumentLine>
+                );
+              })}
+            </DocumentLineList>
 
             <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
               <div className="flex justify-between">

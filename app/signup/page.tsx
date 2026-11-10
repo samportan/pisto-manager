@@ -21,6 +21,8 @@ export default async function SignupPage() {
       title={messages.auth.signupTitle}
       subtitle={messages.auth.signupSubtitle}
       footer={messages.auth.termsNotice}
+      brandLine={messages.auth.brandLine}
+      brandNote={messages.auth.brandNote}
     >
       <SignupForm />
     </AuthPageShell>

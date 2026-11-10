@@ -23,9 +23,31 @@ export const businessNavItems: NavItem[] = [
   { titleKey: "nav.expenses", href: "/dashboard/business/expenses", icon: Receipt },
 ];
 
+const exactHrefs = new Set(["/dashboard", "/dashboard/business"]);
+
 export function isNavActive(pathname: string, href: string) {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard";
-  }
+  if (exactHrefs.has(href)) return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+const bottomPrimaryHrefs = [
+  "/dashboard/business",
+  "/dashboard/business/sales",
+  "/dashboard/business/products",
+];
+
+const bottomMoreHrefs = [
+  "/dashboard/business/purchases",
+  "/dashboard/business/expenses",
+  "/dashboard/business/contacts",
+];
+
+function pickNav(hrefs: string[]) {
+  return hrefs.flatMap((href) => {
+    const item = businessNavItems.find((entry) => entry.href === href);
+    return item ? [item] : [];
+  });
+}
+
+export const bottomPrimaryItems = pickNav(bottomPrimaryHrefs);
+export const bottomMoreItems = pickNav(bottomMoreHrefs);

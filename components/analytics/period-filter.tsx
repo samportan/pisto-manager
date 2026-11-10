@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented";
 import { useT } from "@/hooks/useTranslations";
 import {
   insightsPeriodToMonth,
@@ -68,19 +69,19 @@ export function PeriodFilter({
         className
       )}
     >
-      <div className="flex flex-wrap gap-2">
-        {presets.map((preset) => (
-          <Button
-            key={preset}
-            type="button"
-            size="sm"
-            variant={value === preset ? "secondary" : "outline"}
-            onClick={() => onChange(preset)}
-          >
-            {presetLabels[preset]}
-          </Button>
-        ))}
-      </div>
+      <SegmentedControl
+        label={t("business.periodThisMonth")}
+        value={
+          presets.includes(value as NamedInsightsPeriod)
+            ? (value as NamedInsightsPeriod)
+            : null
+        }
+        onChange={onChange}
+        options={presets.map((preset) => ({
+          value: preset,
+          label: presetLabels[preset],
+        }))}
+      />
       <div
         className={cn(
           "inline-flex items-center gap-0.5 self-start rounded-lg border bg-card p-0.5",
@@ -99,7 +100,7 @@ export function PeriodFilter({
         >
           <ChevronLeft className="size-4" />
         </Button>
-        <span className="min-w-[9.5rem] px-1 text-center text-sm font-medium capitalize tabular-nums">
+        <span className="min-w-[9.5rem] px-1 text-center text-sm font-medium tabular-nums">
           {formatZonedMonthYear(viewing.year, viewing.month, intlLocale)}
         </span>
         <Button
