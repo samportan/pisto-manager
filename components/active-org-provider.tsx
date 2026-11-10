@@ -34,27 +34,21 @@ export function ActiveOrgProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const initial = readWorkspaceClient();
     setWorkspaceState(initial);
-    if (!window.localStorage.getItem("pisto.workspace")) {
-      persistWorkspace(initial.mode, initial.orgId);
-    }
+    persistWorkspace("business", initial.orgId);
     setMigrated(true);
   }, []);
 
   const businessOrgs = organizations.filter((item) => item.type === "business");
 
   const setWorkspace = React.useCallback((mode: WorkspaceMode, orgId?: string | null) => {
-    const nextOrgId = mode === "business" ? orgId ?? null : null;
-    setWorkspaceState({ mode, orgId: nextOrgId });
+    const nextOrgId = orgId ?? null;
+    setWorkspaceState({ mode: "business", orgId: nextOrgId });
     persistWorkspace(mode, nextOrgId);
   }, []);
 
   const setActiveOrgId = React.useCallback(
     (id: string | null) => {
-      if (id) {
-        setWorkspace("business", id);
-      } else {
-        setWorkspace("personal");
-      }
+      setWorkspace("business", id);
     },
     [setWorkspace]
   );
@@ -85,8 +79,6 @@ export function ActiveOrgProvider({ children }: { children: React.ReactNode }) {
     if (!selected || selected.type !== "business") {
       if (businessOrgs.length > 0) {
         setWorkspace("business", businessOrgs[0].id);
-      } else {
-        setWorkspace("personal");
       }
     }
   }, [migrated, orgsLoading, workspace, organizations, businessOrgs, setWorkspace]);

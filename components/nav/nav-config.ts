@@ -1,13 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowLeftRight,
   Boxes,
-  Landmark,
   LayoutDashboard,
   Package,
   Receipt,
   ShoppingCart,
-  Target,
   Users,
 } from "lucide-react";
 
@@ -16,17 +13,6 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
 };
-
-export const personalNavItems: NavItem[] = [
-  { titleKey: "nav.overview", href: "/dashboard", icon: LayoutDashboard },
-  {
-    titleKey: "nav.transactions",
-    href: "/dashboard/transactions",
-    icon: ArrowLeftRight,
-  },
-  { titleKey: "nav.budgets", href: "/dashboard/budgets", icon: Target },
-  { titleKey: "nav.accounts", href: "/dashboard/accounts", icon: Landmark },
-];
 
 export const businessNavItems: NavItem[] = [
   { titleKey: "nav.overview", href: "/dashboard/business", icon: LayoutDashboard },

@@ -30,37 +30,22 @@ function deleteCookie(name: string) {
 
 export function readWorkspaceClient(): WorkspaceState {
   if (typeof window === "undefined") {
-    return { mode: "personal", orgId: null };
+    return { mode: "business", orgId: null };
   }
 
-  const storedMode = window.localStorage.getItem(WORKSPACE_STORAGE_KEY) as WorkspaceMode | null;
-  const cookieMode = readCookie(WORKSPACE_COOKIE) as WorkspaceMode | null;
   const orgId =
     window.localStorage.getItem(ORG_STORAGE_KEY) ?? readCookie(ORG_COOKIE) ?? null;
 
-  let mode: WorkspaceMode =
-    storedMode === "business" || storedMode === "personal"
-      ? storedMode
-      : cookieMode === "business" || cookieMode === "personal"
-        ? cookieMode
-        : orgId
-          ? "business"
-          : "personal";
-
-  if (mode === "business" && !orgId) {
-    mode = "personal";
-  }
-
-  return { mode, orgId: mode === "business" ? orgId : null };
+  return { mode: "business", orgId };
 }
 
-export function persistWorkspace(mode: WorkspaceMode, orgId?: string | null) {
+export function persistWorkspace(_mode: WorkspaceMode, orgId?: string | null) {
   if (typeof window === "undefined") return;
 
-  window.localStorage.setItem(WORKSPACE_STORAGE_KEY, mode);
-  writeCookie(WORKSPACE_COOKIE, mode);
+  window.localStorage.setItem(WORKSPACE_STORAGE_KEY, "business");
+  writeCookie(WORKSPACE_COOKIE, "business");
 
-  if (mode === "business" && orgId) {
+  if (orgId) {
     window.localStorage.setItem(ORG_STORAGE_KEY, orgId);
     writeCookie(ORG_COOKIE, orgId);
   } else {
@@ -70,10 +55,7 @@ export function persistWorkspace(mode: WorkspaceMode, orgId?: string | null) {
 }
 
 export function getWorkspaceModeFromRequest(
-  cookies: { get: (name: string) => { value: string } | undefined }
+  _cookies: { get: (name: string) => { value: string } | undefined }
 ): WorkspaceMode {
-  const mode = cookies.get(WORKSPACE_COOKIE)?.value;
-  if (mode === "business" || mode === "personal") return mode;
-  const orgId = cookies.get(ORG_COOKIE)?.value;
-  return orgId ? "business" : "personal";
+  return "business";
 }

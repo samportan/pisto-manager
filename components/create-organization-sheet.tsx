@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { useT } from "@/hooks/useTranslations";
 
 type Props = {
   open: boolean;
@@ -20,15 +21,15 @@ type Props = {
 };
 
 export function CreateOrganizationSheet({ open, onOpenChange, onCreated }: Props) {
+  const { t } = useT();
   const { createOrganization, isCreating, createError } = useOrganizations();
   const [name, setName] = React.useState("");
-  const [type, setType] = React.useState<"business" | "personal">("business");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const created = await createOrganization({
       name: name.trim(),
-      type,
+      type: "business",
       base_currency: "USD",
     });
     setName("");
@@ -40,14 +41,12 @@ export function CreateOrganizationSheet({ open, onOpenChange, onCreated }: Props
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Create organization</SheetTitle>
-          <SheetDescription>
-            Create org first, then unlock business modules.
-          </SheetDescription>
+          <SheetTitle>{t("nav.createBusiness")}</SheetTitle>
+          <SheetDescription>{t("nav.needBusinessBody")}</SheetDescription>
         </SheetHeader>
         <form onSubmit={onSubmit} className="space-y-4 p-4">
           <div className="space-y-2">
-            <Label htmlFor="org-name">Name</Label>
+            <Label htmlFor="org-name">{t("business.name")}</Label>
             <Input
               id="org-name"
               value={name}
@@ -56,23 +55,11 @@ export function CreateOrganizationSheet({ open, onOpenChange, onCreated }: Props
               required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="org-type">Type</Label>
-            <select
-              id="org-type"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={type}
-              onChange={(e) => setType(e.target.value as "business" | "personal")}
-            >
-              <option value="business">Business</option>
-              <option value="personal">Personal</option>
-            </select>
-          </div>
           {createError ? (
             <p className="text-sm text-destructive">{createError.message}</p>
           ) : null}
           <Button className="w-full" disabled={isCreating} type="submit">
-            {isCreating ? "Creating..." : "Create organization"}
+            {isCreating ? t("common.saving") : t("nav.createBusiness")}
           </Button>
         </form>
       </SheetContent>

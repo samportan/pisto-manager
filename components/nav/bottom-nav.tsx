@@ -3,19 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  businessNavItems,
-  isNavActive,
-  personalNavItems,
-} from "@/components/nav/nav-config";
-import { useActiveOrganization } from "@/hooks/useActiveOrganization";
+import { businessNavItems, isNavActive } from "@/components/nav/nav-config";
 import { useT } from "@/hooks/useTranslations";
 
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useT();
-  const { activeOrg } = useActiveOrganization();
-  const navItems = activeOrg.kind === "business" ? businessNavItems : personalNavItems;
+  const navItems = businessNavItems;
 
   return (
     <nav

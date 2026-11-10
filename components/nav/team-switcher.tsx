@@ -6,10 +6,12 @@ import { ChevronDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateOrganizationSheet } from "@/components/create-organization-sheet";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
+import { useT } from "@/hooks/useTranslations";
 import { cn } from "@/lib/utils";
 
 export function TeamSwitcher() {
   const router = useRouter();
+  const { t } = useT();
   const { activeOrg, organizations, setWorkspace } = useActiveOrganization();
   const [open, setOpen] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -33,25 +35,12 @@ export function TeamSwitcher() {
           onClick={() => setOpen((v) => !v)}
         >
           <span className="truncate text-left text-sm font-semibold">
-            {activeOrg.kind === "business" ? activeOrg.name : "Personal"}
+            {activeOrg.kind === "business" ? activeOrg.name : t("nav.noBusiness")}
           </span>
           <ChevronDown className="size-4 opacity-70" />
         </Button>
         {open ? (
           <div className="absolute z-50 mt-2 w-full rounded-md border border-border bg-popover p-1 shadow-lg">
-            <button
-              className={cn(
-                "w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted",
-                activeOrg.kind === "personal" && "bg-muted"
-              )}
-              onClick={() => {
-                setWorkspace("personal");
-                setOpen(false);
-                router.push("/dashboard");
-              }}
-            >
-              Personal
-            </button>
             {organizations.map((org) => (
               <button
                 key={org.id}
@@ -77,7 +66,7 @@ export function TeamSwitcher() {
               }}
             >
               <Plus className="size-4" />
-              Create organization
+              {t("nav.createBusiness")}
             </button>
           </div>
         ) : null}
