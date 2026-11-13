@@ -27,7 +27,7 @@ function typeVariant(t: Contact["type"]): "secondary" | "outline" | "accent" {
 }
 
 function isCustomerContact(c: Contact): boolean {
-  return c.type === "customer" || c.type === "both";
+  return c.type === "customer" || c.type === "both" || c.type === "supplier";
 }
 
 export function ContactsView() {
