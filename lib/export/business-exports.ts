@@ -13,12 +13,12 @@ import {
   type PurchaseWithMeta,
 } from "@/lib/db/purchases";
 import { getSalesHeadersByOrgId, type SaleWithMeta } from "@/lib/db/sales";
-import type { StockAdjustmentReason } from "@/lib/db/stock-movements";
+import type { StockMovementReason } from "@/lib/db/stock-movements";
 import type { ProductSalesRank } from "@/lib/analytics/business-products";
 import { downloadWorkbook, todayFilename, type SheetRow } from "@/lib/export/excel";
 import { formatDateForExport } from "@/lib/timezone";
 
-export type StockAdjustmentReasonLabels = Record<StockAdjustmentReason, string>;
+export type StockAdjustmentReasonLabels = Record<StockMovementReason, string>;
 
 type ContactMap = Map<string, string>;
 

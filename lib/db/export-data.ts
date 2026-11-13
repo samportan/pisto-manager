@@ -1,5 +1,5 @@
 import { createClient } from "../client";
-import type { StockAdjustmentReason } from "./stock-movements";
+import { STOCK_NON_DOCUMENT_REASONS, type StockMovementReason } from "./stock-movements";
 import { fetchAllPages } from "./query-chunks";
 
 export type ExportSaleLine = {
@@ -39,7 +39,7 @@ export type ExportStockMovement = {
   cost_price: number;
   unit_of_measure: string;
   quantity_delta: number;
-  reason: StockAdjustmentReason;
+  reason: StockMovementReason;
   notes: string | null;
   stock_before: number;
   stock_after: number;
@@ -84,7 +84,7 @@ type StockMovementExportRow = {
   id: string;
   product_id: string;
   quantity_delta: number;
-  reason: StockAdjustmentReason;
+  reason: StockMovementReason;
   notes: string | null;
   stock_before: number;
   stock_after: number;
@@ -175,6 +175,8 @@ export async function getStockMovementsByOrgId(
         "id, product_id, quantity_delta, reason, notes, stock_before, stock_after, created_at, products(name, sku, barcode, cost_price, unit_of_measure)"
       )
       .eq("organization_id", orgId)
+      // Sales and purchases have their own sheets; keep this one to manual and system changes.
+      .in("reason", STOCK_NON_DOCUMENT_REASONS)
       .order("created_at", { ascending: false })
       .range(from, to);
     if (error) throw error;

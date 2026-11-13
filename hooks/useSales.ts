@@ -16,7 +16,7 @@ import {
 } from "@/lib/db/sales";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
-import { productKeys } from "@/hooks/useProducts";
+import { refreshStockQueries } from "@/hooks/useProducts";
 import { salePaymentKeys } from "@/hooks/useSalePayments";
 
 export const salesKeys = {
@@ -115,9 +115,7 @@ export function useSales(opts?: ListSalesOptions & { fetchList?: boolean }) {
     },
     onSuccess: async () => {
       invalidate();
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refreshStockQueries(queryClient, orgId);
     },
   });
 
@@ -127,9 +125,7 @@ export function useSales(opts?: ListSalesOptions & { fetchList?: boolean }) {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["sale-items"] });
       void queryClient.invalidateQueries({ queryKey: salePaymentKeys.bySale(saleId) });
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refreshStockQueries(queryClient, orgId);
     },
   });
 
@@ -155,9 +151,7 @@ export function useDeleteSale() {
       invalidate();
       void queryClient.invalidateQueries({ queryKey: ["sale-items"] });
       void queryClient.invalidateQueries({ queryKey: salePaymentKeys.bySale(saleId) });
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refreshStockQueries(queryClient, orgId);
     },
   });
 

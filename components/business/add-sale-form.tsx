@@ -39,6 +39,7 @@ import {
   truncMoney,
 } from "@/lib/money";
 import { findProductByCode } from "@/lib/product-search";
+import { sumQuantitiesByProduct } from "@/lib/stock";
 import { isDecimalUom, validateQuantity } from "@/lib/uom";
 export function toDatetimeLocalValue(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -234,11 +235,6 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         if (!validateQuantity(qty, pr.unit_of_measure)) {
           throw new Error(t("business.errorQtyInvalid"));
         }
-        if (Number(pr.stock) < qty) {
-          throw new Error(
-            t("business.errorInsufficientStock", { name: pr.name, stock: String(pr.stock) })
-          );
-        }
         const line_total = multiplyMoney(qty, unit);
         items.push({
           product_id: row.product_id,
@@ -248,6 +244,16 @@ export function AddSaleForm({ products, customers, onSubmit, onCancel, isSubmitt
         });
       }
       if (items.length === 0) throw new Error(t("business.errorAddLine"));
+
+      // The same product may be on several lines: stock has to cover the total.
+      for (const [productId, requested] of sumQuantitiesByProduct(items)) {
+        const pr = productById.get(productId);
+        if (pr && Number(pr.stock) < requested) {
+          throw new Error(
+            t("business.errorInsufficientStock", { name: pr.name, stock: String(pr.stock) })
+          );
+        }
+      }
 
       if (collectionMode !== "full" && !customerId) {
         throw new Error(t("business.errorCustomerRequiredCredit"));

@@ -26,18 +26,17 @@ import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
 import { normalizeProductCode } from "@/lib/barcode/normalize";
 import type { NewProduct, Product } from "@/lib/db/products";
-import type { StockAdjustmentReason } from "@/lib/db/stock-movements";
+import {
+  STOCK_ADJUSTMENT_REASONS,
+  type StockAdjustmentReason,
+  type StockMovementReason,
+} from "@/lib/db/stock-movements";
+import { stockReasonLabels } from "@/lib/stock";
 import type { UnitOfMeasure } from "@/lib/uom";
 
 type ProductFormValues = Omit<NewProduct, "user_id" | "organization_id">;
 
-const REASONS: StockAdjustmentReason[] = [
-  "count_correction",
-  "personal_use",
-  "waste",
-  "gift",
-  "other",
-];
+const REASONS: StockAdjustmentReason[] = STOCK_ADJUSTMENT_REASONS;
 
 type Props = {
   product: Product | null;
@@ -145,15 +144,10 @@ export function EditProductSheet({
     }
   }
 
-  function reasonLabel(reason: StockAdjustmentReason) {
-    const map: Record<StockAdjustmentReason, string> = {
-      count_correction: t("business.reasonCountCorrection"),
-      personal_use: t("business.reasonPersonalUse"),
-      waste: t("business.reasonWaste"),
-      gift: t("business.reasonGift"),
-      other: t("business.reasonOther"),
-    };
-    return map[reason];
+  const reasonLabels = React.useMemo(() => stockReasonLabels(t), [t]);
+
+  function reasonLabel(reason: StockMovementReason) {
+    return reasonLabels[reason] ?? reason;
   }
 
   return (

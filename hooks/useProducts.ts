@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
   createProduct,
   deleteProduct,
@@ -19,7 +19,20 @@ export const productKeys = {
 
 type ProductFormValues = Omit<NewProduct, "user_id" | "organization_id">;
 
-export function useProducts(opts?: ListProductsOptions) {
+/**
+ * Everything that shows on-hand stock: product lists (active and with deleted),
+ * per-product movement history, dashboard low-stock and product insights.
+ * Call after any sale, purchase, adjustment or product change.
+ */
+export async function refreshStockQueries(queryClient: QueryClient, orgId: string | null) {
+  if (!orgId) return;
+  void queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+  void queryClient.invalidateQueries({ queryKey: ["business-overview", orgId] });
+  void queryClient.invalidateQueries({ queryKey: ["product-insights-agg", orgId] });
+  await queryClient.invalidateQueries({ queryKey: ["products", orgId], refetchType: "all" });
+}
+
+export function useProducts(opts?: ListProductsOptions & { fresh?: boolean }) {
   const queryClient = useQueryClient();
   const { userId, sessionReady } = useAuthUserId();
   const { activeOrg, activeOrgId } = useActiveOrganization();
@@ -30,11 +43,11 @@ export function useProducts(opts?: ListProductsOptions) {
     queryKey: orgId ? productKeys.all(orgId, opts) : ["products", "idle"],
     queryFn: () => getProductsByOrgId(orgId!, { includeDeleted }),
     enabled: sessionReady && !!userId && !!orgId,
+    // Sale / purchase forms validate against stock: never start them from a stale list.
+    refetchOnMount: opts?.fresh ? "always" : true,
   });
 
-  const invalidate = async () => {
-    if (orgId) await queryClient.invalidateQueries({ queryKey: ["products", orgId] });
-  };
+  const invalidate = () => refreshStockQueries(queryClient, orgId);
 
   const createMutation = useMutation({
     mutationFn: async (payload: ProductFormValues) => {

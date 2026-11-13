@@ -14,7 +14,7 @@ export function NewSaleView() {
   const toast = useAppToast();
   const { createSaleWithItems, isCreating } = useSales();
   const { contacts, isLoading: contactsLoading } = useContacts();
-  const { products, isLoading: productsLoading } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts({ fresh: true });
 
   const customers = contacts.filter((c) => c.type === "customer" || c.type === "both");
 

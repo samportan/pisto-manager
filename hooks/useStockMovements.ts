@@ -7,7 +7,7 @@ import {
   type StockAdjustmentReason,
 } from "@/lib/db/stock-movements";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
-import { productKeys } from "@/hooks/useProducts";
+import { refreshStockQueries } from "@/hooks/useProducts";
 
 const stockMovementKeys = {
   byProduct: (productId: string) => ["stock-movements", productId] as const,
@@ -45,9 +45,7 @@ export function useStockAdjustment() {
       void queryClient.invalidateQueries({
         queryKey: stockMovementKeys.byProduct(vars.product_id),
       });
-      if (orgId) {
-        await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
-      }
+      await refreshStockQueries(queryClient, orgId);
     },
   });
 

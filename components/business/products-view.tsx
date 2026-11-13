@@ -23,7 +23,7 @@ import { normalizeProductCode } from "@/lib/barcode/normalize";
 import { formatMoneyDisplay } from "@/lib/format-money";
 import { buildProductsWorkbook, downloadWorkbook, todayFilename } from "@/lib/export/business-exports";
 import type { Product } from "@/lib/db/products";
-import { isLowStock, isOutOfStock, stockUrgency } from "@/lib/stock";
+import { isLowStock, isOutOfStock, stockReasonLabels, stockUrgency } from "@/lib/stock";
 import { cn } from "@/lib/utils";
 
 function hasBarcode(p: Product): boolean {
@@ -37,7 +37,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
   const { activeOrgId } = useActiveOrganization();
   const fmt = (v: number) => formatMoneyDisplay(v, { currency, locale: intlLocale });
   const { products, createProduct, updateProduct, deleteProduct, isCreating, isUpdating, isDeleting, isLoading } =
-    useProducts();
+    useProducts({ fresh: true });
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [assignOpen, setAssignOpen] = React.useState(false);
   const [editProduct, setEditProduct] = React.useState<Product | null>(null);
@@ -202,13 +202,7 @@ export function ProductsView({ embedded = false }: { embedded?: boolean }) {
                         products: t("business.sheetProducts"),
                         adjustments: t("business.sheetAdjustments"),
                       },
-                      {
-                        count_correction: t("business.reasonCountCorrection"),
-                        personal_use: t("business.reasonPersonalUse"),
-                        waste: t("business.reasonWaste"),
-                        gift: t("business.reasonGift"),
-                        other: t("business.reasonOther"),
-                      }
+                      stockReasonLabels(t)
                     );
                     downloadWorkbook(sheets, todayFilename("productos"));
                   } finally {

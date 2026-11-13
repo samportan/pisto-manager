@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
+import { HandCoins, Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
 
 import { AddContactSheet } from "@/components/business/add-contact-sheet";
 import { CustomerDebtSheet } from "@/components/business/customer-debt-sheet";
 import { EditContactSheet } from "@/components/business/edit-contact-sheet";
+import { SupplierDebtSheet } from "@/components/business/supplier-debt-sheet";
 import { PageHeader } from "@/components/business/page-header";
 import { DataTable } from "@/components/business/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { useContacts } from "@/hooks/useContacts";
+import { useSupplierBalances } from "@/hooks/usePurchasePayments";
 import { useCustomerBalances } from "@/hooks/useSales";
 import { useT } from "@/hooks/useTranslations";
 import { useAppToast } from "@/hooks/useAppToast";
@@ -27,7 +29,11 @@ function typeVariant(t: Contact["type"]): "secondary" | "outline" | "accent" {
 }
 
 function isCustomerContact(c: Contact): boolean {
-  return c.type === "customer" || c.type === "both" || c.type === "supplier";
+  return c.type === "customer" || c.type === "both";
+}
+
+function isSupplierContact(c: Contact): boolean {
+  return c.type === "supplier" || c.type === "both";
 }
 
 export function ContactsView() {
@@ -37,9 +43,11 @@ export function ContactsView() {
   const { contacts, createContact, updateContact, deleteContact, isCreating, isUpdating, isDeleting, isLoading } =
     useContacts();
   const { balanceByCustomer } = useCustomerBalances();
+  const { balanceBySupplier } = useSupplierBalances();
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [editContact, setEditContact] = React.useState<Contact | null>(null);
   const [debtContact, setDebtContact] = React.useState<Contact | null>(null);
+  const [supplierDebtContact, setSupplierDebtContact] = React.useState<Contact | null>(null);
   const [search, setSearch] = React.useState("");
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
@@ -74,17 +82,37 @@ export function ContactsView() {
         meta: { numeric: true },
         cell: ({ row }) => {
           const c = row.original;
-          if (!isCustomerContact(c)) return t("common.empty");
-          const bal = balanceByCustomer.get(c.id);
-          if (!bal || bal.balance_due <= 0) return t("common.empty");
+          const receivable = isCustomerContact(c) ? balanceByCustomer.get(c.id) : undefined;
+          const payable = isSupplierContact(c) ? balanceBySupplier.get(c.id) : undefined;
+          const showReceivable = !!receivable && receivable.balance_due > 0;
+          const showPayable = !!payable && payable.balance_due > 0;
+          if (!showReceivable && !showPayable) return t("common.empty");
+          const both = showReceivable && showPayable;
           return (
-            <button
-              type="button"
-              className="tabular-nums font-medium text-warning hover:underline"
-              onClick={() => setDebtContact(c)}
-            >
-              {fmt(bal.balance_due)}
-            </button>
+            <div className="flex flex-col items-end gap-0.5">
+              {showReceivable ? (
+                <button
+                  type="button"
+                  className="tabular-nums font-medium text-warning hover:underline"
+                  title={t("business.collectCustomerDebt")}
+                  onClick={() => setDebtContact(c)}
+                >
+                  {both ? `${t("business.receivableFromCustomer")}: ` : null}
+                  {fmt(receivable.balance_due)}
+                </button>
+              ) : null}
+              {showPayable ? (
+                <button
+                  type="button"
+                  className="tabular-nums font-medium text-destructive hover:underline"
+                  title={t("business.paySupplierDebt")}
+                  onClick={() => setSupplierDebtContact(c)}
+                >
+                  {both ? `${t("business.payableToSupplier")}: ` : null}
+                  {fmt(payable.balance_due)}
+                </button>
+              ) : null}
+            </div>
           );
         },
       },
@@ -109,6 +137,9 @@ export function ContactsView() {
           const c = row.original;
           const bal = balanceByCustomer.get(c.id);
           const canCollect = isCustomerContact(c) && !!bal && bal.balance_due > 0;
+          const supplierBal = balanceBySupplier.get(c.id);
+          const canPaySupplier =
+            isSupplierContact(c) && !!supplierBal && supplierBal.balance_due > 0;
           return (
             <div className="flex justify-end gap-1">
               {canCollect ? (
@@ -121,6 +152,18 @@ export function ContactsView() {
                   onClick={() => setDebtContact(c)}
                 >
                   <Wallet className="size-4" />
+                </Button>
+              ) : null}
+              {canPaySupplier ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  title={t("business.paySupplierDebt")}
+                  aria-label={t("business.paySupplierDebt")}
+                  onClick={() => setSupplierDebtContact(c)}
+                >
+                  <HandCoins className="size-4" />
                 </Button>
               ) : null}
               <Button
@@ -145,7 +188,7 @@ export function ContactsView() {
         },
       },
     ],
-    [balanceByCustomer, contactTypeLabel, fmt, t]
+    [balanceByCustomer, balanceBySupplier, contactTypeLabel, fmt, t]
   );
 
   return (
@@ -198,6 +241,12 @@ export function ContactsView() {
         contact={debtContact}
         open={!!debtContact}
         onOpenChange={(o) => !o && setDebtContact(null)}
+      />
+
+      <SupplierDebtSheet
+        contact={supplierDebtContact}
+        open={!!supplierDebtContact}
+        onOpenChange={(o) => !o && setSupplierDebtContact(null)}
       />
 
       <EditContactSheet

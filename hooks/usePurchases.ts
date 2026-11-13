@@ -19,7 +19,7 @@ import {
 } from "@/lib/db/purchases";
 import { useActiveOrganization } from "@/hooks/useActiveOrganization";
 import { useAuthUserId } from "@/hooks/useAuthUserId";
-import { productKeys } from "@/hooks/useProducts";
+import { refreshStockQueries } from "@/hooks/useProducts";
 
 export const purchasesKeys = {
   all: (orgId: string, opts?: ListPurchasesOptions) =>
@@ -43,6 +43,7 @@ function useInvalidatePurchases() {
     void queryClient.invalidateQueries({ queryKey: ["purchases", orgId] });
     void queryClient.invalidateQueries({ queryKey: ["business-overview", orgId] });
     void queryClient.invalidateQueries({ queryKey: ["product-insights-agg", orgId] });
+    void queryClient.invalidateQueries({ queryKey: ["supplier-balances", orgId] });
   };
 }
 
@@ -51,8 +52,8 @@ async function refetchProductsIfNeeded(
   orgId: string | null,
   affectsStock: boolean
 ) {
-  if (orgId && affectsStock) {
-    await queryClient.refetchQueries({ queryKey: productKeys.all(orgId) });
+  if (affectsStock) {
+    await refreshStockQueries(queryClient, orgId);
   }
 }
 

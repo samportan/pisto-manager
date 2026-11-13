@@ -50,6 +50,15 @@ export function mapRpcError(
   if (lower.includes("no open balance for customer")) {
     return t("business.errorNoOpenCustomerBalance");
   }
+  if (lower.includes("no open balance for supplier")) {
+    return t("business.errorNoOpenSupplierBalance");
+  }
+  if (lower.includes("select at least one purchase")) {
+    return t("business.errorSelectPurchase");
+  }
+  if (lower.includes("insufficient stock for adjustment")) {
+    return t("toast.errorInsufficientStockRpc");
+  }
   if (lower.includes("customer required for partial or credit")) {
     return t("business.errorCustomerRequiredCredit");
   }
