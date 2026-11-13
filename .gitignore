@@ -44,3 +44,19 @@ next-env.d.ts
 
 # supabase local cli
 supabase/.temp/
+
+# AI agent / editor tooling (local only)
+# Keep only project skills that AGENTS.md points to.
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/vercel-npm-lockfile/
+.agent/
+.trae/
+.windsurf/
+.cursor/
+.codegraph/
+skills-lock.json
+
+# scratch files
+tmp-*.txt
