@@ -38,7 +38,7 @@ export function SignupForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0">
@@ -61,35 +61,38 @@ export function SignupForm() {
           <p className="text-[11px] font-medium text-muted-foreground">
             {t("auth.email")}
           </p>
-          <p className="font-mono text-sm font-semibold text-foreground select-all">
+          <p className="font-mono text-sm font-semibold text-foreground select-all break-all">
             {ADMIN_EMAIL}
           </p>
         </div>
 
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-4 flex flex-col gap-2.5 w-full">
           <a
             href={mailtoUrl}
-            className={cn(buttonVariants({ variant: "default" }), "w-full gap-2")}
+            className={cn(
+              buttonVariants({ variant: "default" }),
+              "w-full h-10 gap-2 justify-center text-center font-medium"
+            )}
           >
-            <Mail className="size-4" />
-            {t("auth.requestAccessSendEmail")}
+            <Mail className="size-4 shrink-0" />
+            <span>{t("auth.requestAccessSendEmail")}</span>
           </a>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full gap-2"
+            className="w-full h-10 gap-2 justify-center font-medium"
             onClick={() => void handleCopy()}
           >
             {copied ? (
               <>
-                <Check className="size-4 text-emerald-500" />
-                {t("auth.requestAccessEmailCopied")}
+                <Check className="size-4 text-emerald-500 shrink-0" />
+                <span>{t("auth.requestAccessEmailCopied")}</span>
               </>
             ) : (
               <>
-                <Copy className="size-4" />
-                {t("auth.requestAccessCopyEmail")}
+                <Copy className="size-4 shrink-0" />
+                <span>{t("auth.requestAccessCopyEmail")}</span>
               </>
             )}
           </Button>
