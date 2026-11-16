@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { getSafeRedirectUrl } from "@/lib/safe-redirect";
 import {
   getSupabaseAnonKey,
   getSupabaseUrl,
@@ -11,12 +12,11 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.redirect(`${origin}/login`);
+    return NextResponse.redirect(`${origin}/login?error=config`);
   }
+
   const code = searchParams.get("code");
-  const rawNext = searchParams.get("next") ?? "/dashboard";
-  const next =
-    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
+  const next = getSafeRedirectUrl(searchParams.get("next"), "/dashboard");
 
   if (code) {
     const cookieStore = await cookies();
@@ -39,9 +39,9 @@ export async function GET(request: Request) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return NextResponse.redirect(new URL(next, origin));
     }
   }
 
-  return NextResponse.redirect(`${origin}/login`);
+  return NextResponse.redirect(`${origin}/login?error=auth`);
 }

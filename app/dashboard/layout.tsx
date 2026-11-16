@@ -11,20 +11,20 @@ export default async function DashboardLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let email: string | null = null;
-
-  if (isSupabaseConfigured()) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
-
-    email = user.email ?? null;
+  if (!isSupabaseConfigured()) {
+    redirect("/login?error=config");
   }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const email = user.email ?? null;
 
   return (
     <AuthSessionProvider>

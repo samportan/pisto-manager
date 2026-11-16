@@ -6,8 +6,8 @@ import { getMessages } from "@/lib/i18n/get-messages";
 import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = {
-  title: "Sign up",
-  description: "Create your Pisto account",
+  title: "Solicitar acceso",
+  description: "Solicita tu cuenta en Pisto",
 };
 
 export default async function SignupPage() {
@@ -18,8 +18,8 @@ export default async function SignupPage() {
 
   return (
     <AuthPageShell
-      title={messages.auth.signupTitle}
-      subtitle={messages.auth.signupSubtitle}
+      title={messages.auth.requestAccessTitle}
+      subtitle={messages.auth.requestAccessSubtitle}
       footer={messages.auth.termsNotice}
       brandLine={messages.auth.brandLine}
       brandNote={messages.auth.brandNote}

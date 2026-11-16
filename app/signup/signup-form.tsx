@@ -1,163 +1,119 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/client";
-import { isSupabaseConfigured } from "@/lib/supabase-config";
+import { useState } from "react";
+import { ArrowLeft, Check, Copy, Mail, ShieldCheck } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { useT } from "@/hooks/useTranslations";
+import { cn } from "@/lib/utils";
 
-
+const ADMIN_EMAIL = "samportan@protonmail.com";
 
 export function SignupForm() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-  const [info, setInfo] = useState<string | null>(null);
+  const { t } = useT();
+  const [copied, setCopied] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setInfo(null);
-    const form = e.currentTarget;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
-    const password = (form.elements.namedItem("password") as HTMLInputElement)
-      .value;
-    const confirm = (form.elements.namedItem("confirm") as HTMLInputElement)
-      .value;
+  const mailtoSubject = encodeURIComponent("Solicitud de acceso a Pisto");
+  const mailtoBody = encodeURIComponent(
+    `Hola Samuel,\n\nSolicito una cuenta para acceder a Pisto con los siguientes datos:\n\n- Nombre completo:\n- Nombre del negocio:\n- Correo para la cuenta:\n\n¡Gracias!`
+  );
+  const mailtoUrl = `mailto:${ADMIN_EMAIL}?subject=${mailtoSubject}&body=${mailtoBody}`;
 
-    if (password !== confirm) {
-      setError("Passwords do not match.");
-      return;
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(ADMIN_EMAIL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Fallback if clipboard API is blocked
+      const textArea = document.createElement("textarea");
+      textArea.value = ADMIN_EMAIL;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
     }
-    if (password.length < 8) {
-      setError("Use at least 8 characters for your password.");
-      return;
-    }
-
-    setPending(true);
-
-    if (!isSupabaseConfigured()) {
-      setPending(false);
-      router.push("/dashboard");
-      return;
-    }
-
-    const supabase = createClient();
-    const { data, error: signError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    setPending(false);
-
-    if (signError) {
-      setError(signError.message);
-      return;
-    }
-
-    if (data.session) {
-      router.push("/dashboard");
-      router.refresh();
-      return;
-    }
-
-    setInfo(
-      "Check your inbox to confirm your email, then you can sign in."
-    );
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
-      {error ? (
-        <p
-          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {error}
+    <div className="space-y-6">
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary shrink-0">
+            <ShieldCheck className="size-5" />
+          </div>
+          <div className="space-y-1">
+            <span className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              {t("auth.requestAccessBadge")}
+            </span>
+            <h2 className="text-sm font-semibold text-foreground">
+              {t("auth.requestAccessCardTitle")}
+            </h2>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t("auth.requestAccessCardDesc")}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-border bg-background/80 p-3">
+          <p className="text-[11px] font-medium text-muted-foreground">
+            {t("auth.email")}
+          </p>
+          <p className="font-mono text-sm font-semibold text-foreground select-all">
+            {ADMIN_EMAIL}
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <a
+            href={mailtoUrl}
+            className={cn(buttonVariants({ variant: "default" }), "w-full gap-2")}
+          >
+            <Mail className="size-4" />
+            {t("auth.requestAccessSendEmail")}
+          </a>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => void handleCopy()}
+          >
+            {copied ? (
+              <>
+                <Check className="size-4 text-emerald-500" />
+                {t("auth.requestAccessEmailCopied")}
+              </>
+            ) : (
+              <>
+                <Copy className="size-4" />
+                {t("auth.requestAccessCopyEmail")}
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-2">
+        <p className="text-xs font-semibold text-foreground">
+          {t("auth.requestAccessInstructionsTitle")}
         </p>
-      ) : null}
-      {info ? (
-        <p
-          className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-sm text-accent-foreground"
-          role="status"
-        >
-          {info}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t("auth.requestAccessInstructions")}
         </p>
-      ) : null}
-
-      <div className="space-y-2">
-        <label
-          htmlFor="email"
-          className="block text-xs font-semibold text-muted-foreground"
-        >
-          Email
-        </label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          placeholder="you@example.com"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label
-          htmlFor="password"
-          className="block text-xs font-semibold text-muted-foreground"
-        >
-          Password
-        </Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          placeholder="••••••••"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label
-          htmlFor="confirm"
-          className="block text-xs font-semibold text-muted-foreground"
-        >
-          Confirm password
-        </Label>
-        <Input
-          id="confirm"
-          name="confirm"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          placeholder="••••••••"
-        />
       </div>
 
-      <Button
-        type="submit"
-        disabled={pending}
-        className="mt-2 w-full"
-      >
-        {pending ? "Creating account…" : "Create account"}
-      </Button>
-
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+      <p className="text-center text-sm text-muted-foreground">
         <Link
           href="/login"
-          className="font-semibold text-primary hover:text-primary/80 transition-colors"
+          className="inline-flex items-center gap-1.5 font-semibold text-primary hover:text-primary/80 transition-colors"
         >
-          Sign in
+          <ArrowLeft className="size-3.5" />
+          {t("auth.requestAccessBackToLogin")}
         </Link>
       </p>
-    </form>
+    </div>
   );
 }
